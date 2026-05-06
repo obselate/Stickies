@@ -3,6 +3,7 @@
     <OutputType>Package</OutputType>
     <OutputName>Stickies-$(Version)</OutputName>
     <SuppressIces>ICE61</SuppressIces>
+    <DefineConstants>Version=$(Version)</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
