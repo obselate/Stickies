@@ -36,7 +36,7 @@
                 <MenuItem Header="Delete" InputGesture="Ctrl+D" Click="OnDeleteClick"/>
             </ContextMenu>
         </Border.ContextMenu>
-        <Grid RowDefinitions="22,*">
+        <Grid x:Name="BodyGrid" RowDefinitions="22,*">
             <Border Grid.Row="0"
                     Name="HeaderBar"
                     Background="#FFEB80"
