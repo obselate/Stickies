@@ -15,6 +15,8 @@ internal sealed class PeelOverlay : Control
     public const double DurationMs = 700.0;
     public const int CornerSize = 110;
     private static readonly CubicBezier Easing = new(0.5, 0, 0.4, 1);
+    private const double ShadowDelayMs = 100.0;
+    private const double ShadowFadeMs = 350.0;
 
     public Bitmap? Snapshot { get; set; }
 
@@ -52,9 +54,15 @@ internal sealed class PeelOverlay : Control
         base.Render(context);
         var bounds = new Rect(0, 0, Bounds.Width, Bounds.Height);
         var tex = GetOrDecodeSkBitmap();
-        double rawT = Math.Clamp(_watch.Elapsed.TotalMilliseconds / DurationMs, 0.0, 1.0);
+        double elapsedMs = _watch.Elapsed.TotalMilliseconds;
+        double rawT = Math.Clamp(elapsedMs / DurationMs, 0.0, 1.0);
         double easedT = Easing.Ease(rawT);
-        context.Custom(new PeelDrawOp(bounds, tex, easedT, cornerSize: CornerSize));
+
+        double shadowAlpha = Math.Clamp(
+            (elapsedMs - ShadowDelayMs) / ShadowFadeMs,
+            0.0, 1.0);
+
+        context.Custom(new PeelDrawOp(bounds, tex, easedT, shadowAlpha, cornerSize: CornerSize));
     }
 
     private void OnTick(object? sender, EventArgs e)

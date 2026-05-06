@@ -14,14 +14,16 @@ internal sealed class PeelDrawOp : ICustomDrawOperation
 {
     private readonly Rect _bounds;
     private readonly SKBitmap? _texture;
-    private readonly double _t;       // eased, 0..1
+    private readonly double _t;           // eased, 0..1
+    private readonly double _shadowAlpha; // NEW: 0..1, fades in independently
     private readonly int _cornerSize;
 
-    public PeelDrawOp(Rect bounds, SKBitmap? texture, double t, int cornerSize)
+    public PeelDrawOp(Rect bounds, SKBitmap? texture, double t, double shadowAlpha, int cornerSize)
     {
         _bounds = bounds;
         _texture = texture;
         _t = t;
+        _shadowAlpha = shadowAlpha;
         _cornerSize = cornerSize;
     }
 
@@ -37,6 +39,47 @@ internal sealed class PeelDrawOp : ICustomDrawOperation
         using var lease = leaseFeature.Lease();
         var canvas = lease.SkCanvas;
 
+        // ===== Shadow pass (un-rotated, in screen frame) =====
+        if (_shadowAlpha > 0)
+        {
+            canvas.Save();
+            canvas.Translate((float)_bounds.X, (float)_bounds.Y + _cornerSize);
+
+            // Shadow center: roughly at the centroid of the original triangle,
+            // pushed slightly outward along the hinge-perpendicular direction
+            // so it suggests the flap lifting away.
+            float cx = _cornerSize * 0.33f;
+            float cy = -_cornerSize * 0.33f;
+            float radius = _cornerSize * 0.7f;
+
+            byte alphaByte = (byte)Math.Clamp(_shadowAlpha * 90, 0, 90); // max ~35% black
+            using var shadowShader = SKShader.CreateRadialGradient(
+                new SKPoint(cx, cy),
+                radius,
+                new[] { new SKColor(0, 0, 0, alphaByte), new SKColor(0, 0, 0, 0) },
+                new[] { 0f, 1f },
+                SKShaderTileMode.Clamp);
+            using var shadowPaint = new SKPaint
+            {
+                Shader = shadowShader,
+                IsAntialias = true
+            };
+
+            // Clip to the original triangle so the shadow doesn't leak
+            // outside the corner-area (the page-beneath only exists where
+            // the flap was).
+            using var clip = new SKPath();
+            clip.MoveTo(0, -_cornerSize);
+            clip.LineTo(_cornerSize, 0);
+            clip.LineTo(0, 0);
+            clip.Close();
+            canvas.ClipPath(clip, antialias: true);
+            canvas.DrawPaint(shadowPaint);
+
+            canvas.Restore();
+        }
+
+        // ===== Rotated face pass =====
         canvas.Save();
         canvas.Translate((float)_bounds.X, (float)_bounds.Y + _cornerSize);
 
