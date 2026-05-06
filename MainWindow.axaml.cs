@@ -1,8 +1,10 @@
 using System;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -17,6 +19,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _saveBoundsTimer;
     private bool _ready;
     private bool _pinned;
+    private bool _isAnimating;
     private string _color = "#FFF59E";
 
     public long NoteId => _noteId;
@@ -209,15 +212,79 @@ public partial class MainWindow : Window
 
     public static void SpawnNew(MainWindow? near)
     {
-        int? x = null, y = null;
-        if (near is not null)
+        // Null-source path: no peel, just fade in at the DB-default position.
+        if (near is null)
         {
-            x = near.Position.X + 24;
-            y = near.Position.Y + 24;
+            var rowN = App.Store.Create(null, null, 280, 280);
+            var wN = new MainWindow(rowN);
+            FadeIn(wN);
+            wN.Show();
+            return;
         }
-        var row = App.Store.Create(x, y, 280, 280);
-        var w = new MainWindow(row);
-        w.Show();
+
+        // Source-driven path: peel from `near`, then spawn B at near.Position
+        // (no cascade offset — see spec decision #2).
+        if (near._isAnimating) return;
+        near._isAnimating = true;
+
+        Bitmap snapshot;
+        try
+        {
+            snapshot = CaptureCornerSnapshot(near);
+        }
+        catch
+        {
+            // Snapshot failed (window not yet measured, etc.) — fall back to instant spawn.
+            near._isAnimating = false;
+            var rowF = App.Store.Create(near.Position.X, near.Position.Y, 280, 280);
+            var wF = new MainWindow(rowF);
+            wF.Show();
+            return;
+        }
+
+        var overlay = new PeelOverlay { Snapshot = snapshot };
+        Grid.SetRow(overlay, 0);
+        Grid.SetRowSpan(overlay, 2);
+        overlay.HorizontalAlignment = HorizontalAlignment.Left;
+        overlay.VerticalAlignment = VerticalAlignment.Bottom;
+        overlay.Width = PeelOverlay.CornerSize;
+        overlay.Height = PeelOverlay.CornerSize;
+        overlay.IsHitTestVisible = false;
+
+        overlay.Completed += () =>
+        {
+            // Detach overlay from near's grid (Snapshot/SK bitmap disposed in OnDetached).
+            near.BodyGrid.Children.Remove(overlay);
+            near._isAnimating = false;
+
+            // Read near.Position FRESH at completion (in case window was dragged
+            // during the animation).
+            var pos = near.Position;
+            var row = App.Store.Create(pos.X, pos.Y, 280, 280);
+            var w = new MainWindow(row);
+            w.Show();
+        };
+
+        near.BodyGrid.Children.Add(overlay);
+        overlay.Start();
+    }
+
+    private static void FadeIn(MainWindow w, int durationMs = 50)
+    {
+        w.Opacity = 0;
+        var sw = Stopwatch.StartNew();
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+        timer.Tick += (_, _) =>
+        {
+            double t = Math.Clamp(sw.Elapsed.TotalMilliseconds / durationMs, 0.0, 1.0);
+            w.Opacity = t;
+            if (t >= 1.0)
+            {
+                timer.Stop();
+                sw.Stop();
+            }
+        };
+        timer.Start();
     }
 
     internal static Bitmap CaptureCornerSnapshot(MainWindow source)
