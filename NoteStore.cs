@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Microsoft.Data.Sqlite;
 
@@ -28,34 +29,82 @@ public sealed class NoteStore
     private void EnsureSchema()
     {
         using var c = Open();
-        using var cmd = c.CreateCommand();
-        cmd.CommandText = """
-            PRAGMA journal_mode=WAL;
-            CREATE TABLE IF NOT EXISTS notes (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                text       TEXT    NOT NULL DEFAULT '',
-                updated_at INTEGER NOT NULL
-            );
-        """;
-        cmd.ExecuteNonQuery();
-    }
-
-    public (long id, string text) LoadOrCreateDefault()
-    {
-        using var c = Open();
-
-        using (var sel = c.CreateCommand())
+        using (var cmd = c.CreateCommand())
         {
-            sel.CommandText = "SELECT id, text FROM notes ORDER BY id LIMIT 1;";
-            using var r = sel.ExecuteReader();
-            if (r.Read()) return (r.GetInt64(0), r.GetString(1));
+            cmd.CommandText = """
+                PRAGMA journal_mode=WAL;
+                CREATE TABLE IF NOT EXISTS notes (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    text       TEXT    NOT NULL DEFAULT '',
+                    x          INTEGER,
+                    y          INTEGER,
+                    width      INTEGER NOT NULL DEFAULT 280,
+                    height     INTEGER NOT NULL DEFAULT 280,
+                    updated_at INTEGER NOT NULL,
+                    deleted_at INTEGER
+                );
+            """;
+            cmd.ExecuteNonQuery();
         }
 
-        using var ins = c.CreateCommand();
-        ins.CommandText = "INSERT INTO notes (text, updated_at) VALUES ('', @ts); SELECT last_insert_rowid();";
-        ins.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var id = (long)(ins.ExecuteScalar() ?? 0L);
-        return (id, string.Empty);
+        AddColumnIfMissing(c, "x", "INTEGER");
+        AddColumnIfMissing(c, "y", "INTEGER");
+        AddColumnIfMissing(c, "width", "INTEGER NOT NULL DEFAULT 280");
+        AddColumnIfMissing(c, "height", "INTEGER NOT NULL DEFAULT 280");
+        AddColumnIfMissing(c, "deleted_at", "INTEGER");
+    }
+
+    private static void AddColumnIfMissing(SqliteConnection c, string col, string type)
+    {
+        using var info = c.CreateCommand();
+        info.CommandText = "SELECT COUNT(*) FROM pragma_table_info('notes') WHERE name=@n;";
+        info.Parameters.Add("@n", SqliteType.Text).Value = col;
+        var exists = Convert.ToInt64(info.ExecuteScalar() ?? 0L) > 0;
+        if (exists) return;
+
+        using var alter = c.CreateCommand();
+        alter.CommandText = $"ALTER TABLE notes ADD COLUMN {col} {type};";
+        alter.ExecuteNonQuery();
+    }
+
+    public sealed record NoteRow(long Id, string Text, int? X, int? Y, int Width, int Height);
+
+    public List<NoteRow> LoadActive()
+    {
+        var list = new List<NoteRow>();
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT id, text, x, y, width, height FROM notes WHERE deleted_at IS NULL ORDER BY id;";
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+        {
+            list.Add(new NoteRow(
+                r.GetInt64(0),
+                r.GetString(1),
+                r.IsDBNull(2) ? null : r.GetInt32(2),
+                r.IsDBNull(3) ? null : r.GetInt32(3),
+                r.GetInt32(4),
+                r.GetInt32(5)));
+        }
+        return list;
+    }
+
+    public NoteRow Create(int? x, int? y, int width, int height)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO notes (text, x, y, width, height, updated_at)
+            VALUES ('', @x, @y, @w, @h, @ts);
+            SELECT last_insert_rowid();
+        """;
+        cmd.Parameters.Add("@x", SqliteType.Integer).Value = (object?)x ?? DBNull.Value;
+        cmd.Parameters.Add("@y", SqliteType.Integer).Value = (object?)y ?? DBNull.Value;
+        cmd.Parameters.Add("@w", SqliteType.Integer).Value = width;
+        cmd.Parameters.Add("@h", SqliteType.Integer).Value = height;
+        cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var id = Convert.ToInt64(cmd.ExecuteScalar() ?? 0L);
+        return new NoteRow(id, "", x, y, width, height);
     }
 
     public void UpdateText(long id, string text)
@@ -64,6 +113,30 @@ public sealed class NoteStore
         using var cmd = c.CreateCommand();
         cmd.CommandText = "UPDATE notes SET text=@t, updated_at=@ts WHERE id=@id;";
         cmd.Parameters.Add("@t", SqliteType.Text).Value = text;
+        cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        cmd.Parameters.Add("@id", SqliteType.Integer).Value = id;
+        cmd.ExecuteNonQuery();
+    }
+
+    public void UpdateBounds(long id, int x, int y, int width, int height)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE notes SET x=@x, y=@y, width=@w, height=@h, updated_at=@ts WHERE id=@id;";
+        cmd.Parameters.Add("@x", SqliteType.Integer).Value = x;
+        cmd.Parameters.Add("@y", SqliteType.Integer).Value = y;
+        cmd.Parameters.Add("@w", SqliteType.Integer).Value = width;
+        cmd.Parameters.Add("@h", SqliteType.Integer).Value = height;
+        cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        cmd.Parameters.Add("@id", SqliteType.Integer).Value = id;
+        cmd.ExecuteNonQuery();
+    }
+
+    public void SoftDelete(long id)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE notes SET deleted_at=@ts WHERE id=@id;";
         cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         cmd.Parameters.Add("@id", SqliteType.Integer).Value = id;
         cmd.ExecuteNonQuery();

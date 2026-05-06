@@ -21,12 +21,24 @@
                      Name="NoteText"
                      Background="Transparent"
                      BorderThickness="0"
-                     Padding="12,8,12,12"
+                     Padding="12,8,12,18"
                      FontSize="14"
                      Foreground="#1a1a1a"
                      AcceptsReturn="True"
                      TextWrapping="Wrap"
                      TextChanged="OnTextChanged"/>
+
+            <Border Grid.Row="1"
+                    Width="14" Height="14"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Background="Transparent"
+                    Cursor="BottomRightCorner"
+                    PointerPressed="OnResizeGripPressed">
+                <Path Data="M 14,0 L 14,14 L 0,14 Z"
+                      Fill="#33000000"
+                      Stretch="Fill"/>
+            </Border>
         </Grid>
     </Border>
 </Window>
