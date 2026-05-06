@@ -15,8 +15,6 @@ internal sealed class PeelOverlay : Control
     public const double DurationMs = 700.0;
     public const int CornerSize = 110;
     private static readonly CubicBezier Easing = new(0.5, 0, 0.4, 1);
-    private const double ShadowDelayMs = 100.0;
-    private const double ShadowFadeMs = 350.0;
 
     public Bitmap? Snapshot { get; set; }
 
@@ -60,21 +58,22 @@ internal sealed class PeelOverlay : Control
         double rawT = Math.Clamp(elapsedMs / DurationMs, 0.0, 1.0);
         double easedT = Easing.Ease(rawT);
 
-        double shadowAlpha = Math.Clamp(
-            (elapsedMs - ShadowDelayMs) / ShadowFadeMs,
-            0.0, 1.0);
+        // Bell curve: shadow peaks mid-animation (when the flap is highest off
+        // the page) and fades to zero by the end. Avoids the prior behavior
+        // where the end frame was dominated by a fully-faded-in shadow blob.
+        double shadowAlpha = Math.Sin(rawT * Math.PI);
 
         context.Custom(new PeelDrawOp(bounds, tex, easedT, shadowAlpha, cornerSize: CornerSize, backFaceColor: ComputeBackFaceColor()));
     }
 
-    // Mix body color with white at 60/40 to suggest the underside of paper.
-    // Yields a markedly lighter tint of the source color so the back of the
-    // flap reads as distinct surface, not "barely darker note."
+    // Mix body color with white at 20/80 — push hard toward white so the paper
+    // underside is unmistakably distinct from the colored front, even when the
+    // body color is already light (yellow, pink, light blue).
     private SKColor ComputeBackFaceColor()
     {
-        byte r = (byte)(BodyColor.R * 0.4 + 255 * 0.6);
-        byte g = (byte)(BodyColor.G * 0.4 + 255 * 0.6);
-        byte b = (byte)(BodyColor.B * 0.4 + 255 * 0.6);
+        byte r = (byte)(BodyColor.R * 0.2 + 255 * 0.8);
+        byte g = (byte)(BodyColor.G * 0.2 + 255 * 0.8);
+        byte b = (byte)(BodyColor.B * 0.2 + 255 * 0.8);
         return new SKColor(r, g, b, 255);
     }
 

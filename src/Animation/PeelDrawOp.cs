@@ -42,22 +42,20 @@ internal sealed class PeelDrawOp : ICustomDrawOperation
         var canvas = lease.SkCanvas;
 
         // ===== Shadow pass (un-rotated, in screen frame) =====
+        // Linear gradient perpendicular to the hinge: darkest along the hypotenuse
+        // (where the lifted flap is closest to the page beneath) and fading to
+        // transparent at the BL corner (largest gap, softest shadow). This matches
+        // the physical shadow geometry of a hinged-paper flap and reads as depth
+        // rather than a soft blob.
         if (_shadowAlpha > 0)
         {
             canvas.Save();
             canvas.Translate((float)_bounds.X, (float)_bounds.Y + _cornerSize);
 
-            // Shadow center: roughly at the centroid of the original triangle,
-            // pushed slightly outward along the hinge-perpendicular direction
-            // so it suggests the flap lifting away.
-            float cx = _cornerSize * 0.33f;
-            float cy = -_cornerSize * 0.33f;
-            float radius = _cornerSize * 0.7f;
-
-            byte alphaByte = (byte)Math.Clamp(_shadowAlpha * 90, 0, 90); // max ~35% black
-            using var shadowShader = SKShader.CreateRadialGradient(
-                new SKPoint(cx, cy),
-                radius,
+            byte alphaByte = (byte)Math.Clamp(_shadowAlpha * 55, 0, 55);
+            using var shadowShader = SKShader.CreateLinearGradient(
+                new SKPoint(0, 0),                                    // BL corner (dark)
+                new SKPoint(_cornerSize * 0.5f, -_cornerSize * 0.5f), // hinge midpoint (transparent)
                 new[] { new SKColor(0, 0, 0, alphaByte), new SKColor(0, 0, 0, 0) },
                 new[] { 0f, 1f },
                 SKShaderTileMode.Clamp);
@@ -67,13 +65,13 @@ internal sealed class PeelDrawOp : ICustomDrawOperation
                 IsAntialias = true
             };
 
-            // Clip to the original triangle so the shadow doesn't leak
-            // outside the corner-area (the page-beneath only exists where
-            // the flap was).
+            // Clip to the flap region: lower-left half of overlay (the BL
+            // corner triangle of the body), separated from the upper-right by
+            // the TL-BR diagonal hinge.
             using var clip = new SKPath();
-            clip.MoveTo(0, -_cornerSize);
-            clip.LineTo(_cornerSize, 0);
-            clip.LineTo(0, 0);
+            clip.MoveTo(0, -_cornerSize);   // TL
+            clip.LineTo(_cornerSize, 0);    // BR
+            clip.LineTo(0, 0);              // BL (right angle, lifts)
             clip.Close();
             canvas.ClipPath(clip, antialias: true);
             canvas.DrawPaint(shadowPaint);
@@ -91,30 +89,33 @@ internal sealed class PeelDrawOp : ICustomDrawOperation
         var perspective = SKMatrix44.CreateIdentity();
         perspective[3, 2] = -1f / 600f;
 
-        // Hinge origin = TL of corner-area = (0, -cornerSize) in our translated frame.
+        // Hinge = TL-BR diagonal; passes through (0,-cs) and (cs,0), not origin.
+        // Translate so TL→origin, rotate around (1,1,0) axis, translate back, then
+        // apply perspective. PostConcat(N) sets m = N × m, so calling them in the
+        // desired application order builds m = perspective × fromOrigin × rot ×
+        // toOrigin, which when applied to v produces v → toOrigin → rot →
+        // fromOrigin → perspective — the correct hinge-rotation pipeline.
         var toOrigin = SKMatrix44.CreateTranslation(0, _cornerSize, 0);
         var fromOrigin = SKMatrix44.CreateTranslation(0, -_cornerSize, 0);
-
-        // Rotate around axis (1, 1, 0) by 180·t degrees.
         var rot = SKMatrix44.CreateRotation(1, 1, 0,
             (float)(angleDeg * Math.PI / 180.0));
 
-        // Compose: M = perspective × fromOrigin × rot × toOrigin (right-multiply order).
         var m = SKMatrix44.CreateIdentity();
-        m.PostConcat(perspective);
-        m.PostConcat(fromOrigin);
-        m.PostConcat(rot);
         m.PostConcat(toOrigin);
+        m.PostConcat(rot);
+        m.PostConcat(fromOrigin);
+        m.PostConcat(perspective);
 
-        // Apply 4x4 to 2D canvas: extract 3x3 with perspective row preserved.
         var m2d = m.Matrix;
         canvas.Concat(ref m2d);
 
-        // Front-face triangle.
+        // Flap triangle: lower-left half of overlay. Right angle at BL (the
+        // body's BL corner — the actual lifting corner). Hypotenuse runs
+        // TL → BR (perpendicular to the BL→TR motion of the lifting corner).
         using var path = new SKPath();
-        path.MoveTo(0, -_cornerSize);     // TL
-        path.LineTo(_cornerSize, 0);      // BR
-        path.LineTo(0, 0);                // BL (right angle)
+        path.MoveTo(0, -_cornerSize);   // TL
+        path.LineTo(_cornerSize, 0);    // BR
+        path.LineTo(0, 0);              // BL (right angle, lifts)
         path.Close();
 
         bool frontVisible = _t < 0.5;
@@ -132,6 +133,20 @@ internal sealed class PeelDrawOp : ICustomDrawOperation
                 IsAntialias = true
             };
             canvas.DrawPath(path, paint);
+
+            // Always darken the front face so the lifting flap is distinguishable
+            // from the body color it's textured with — without this, the front face
+            // is essentially invisible until ~90° edge-on, and the eye reads the
+            // animation as "back face appears at TR" instead of "BL corner lifting
+            // to TR." Base darkening at t=0; sin(angle) ramp on top peaks at 90°.
+            double tiltMix = Math.Sin(angleDeg * Math.PI / 180.0);
+            byte tiltAlpha = (byte)Math.Clamp(50 + tiltMix * 80, 0, 130);
+            using var tiltPaint = new SKPaint
+            {
+                Color = new SKColor(0, 0, 0, tiltAlpha),
+                IsAntialias = true
+            };
+            canvas.DrawPath(path, tiltPaint);
         }
         else if (!frontVisible)
         {
@@ -143,14 +158,14 @@ internal sealed class PeelDrawOp : ICustomDrawOperation
             canvas.DrawPath(path, paint);
         }
 
-        // Edge stroke around the flap silhouette so the lifting paper reads as a
-        // distinct shape against the body color (especially when source and back
-        // face are similar). Drawn under the same matrix so it follows perspective.
+        // Edge stroke around the flap silhouette. Drawn under the same matrix
+        // so it follows the perspective. Heavier than the prior 1px/alpha-80
+        // pass so the silhouette is unambiguous in every frame.
         using var strokePaint = new SKPaint
         {
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1.0f,
-            Color = new SKColor(0, 0, 0, 80),
+            StrokeWidth = 1.5f,
+            Color = new SKColor(0, 0, 0, 110),
             IsAntialias = true
         };
         canvas.DrawPath(path, strokePaint);
