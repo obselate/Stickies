@@ -58,6 +58,72 @@ public partial class MainWindow : Window
         };
         Closing += (_, _) => FlushPendingWrites();
         KeyDown += OnKeyDown;
+
+        NoteText.GotFocus += OnNoteFocusGot;
+        NoteText.LostFocus += OnNoteFocusLost;
+
+        // Initial render: if the loaded note has text, show the rendered view;
+        // otherwise leave the TextBox visible so a freshly-created empty note
+        // is immediately typable without an extra click.
+        if (!string.IsNullOrEmpty(NoteText.Text))
+        {
+            RenderText();
+            NoteText.IsVisible = false;
+            RenderedText.IsVisible = true;
+        }
+    }
+
+    private void OnNoteFocusGot(object? sender, GotFocusEventArgs e)
+    {
+        RenderedText.IsVisible = false;
+        NoteText.IsVisible = true;
+    }
+
+    private void OnNoteFocusLost(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        // Keep the TextBox visible while the note is empty — there's nothing
+        // to render and an empty rendered view is just an awkward blank that
+        // requires an extra click to start typing again.
+        if (string.IsNullOrEmpty(NoteText.Text)) return;
+        RenderText();
+        NoteText.IsVisible = false;
+        RenderedText.IsVisible = true;
+    }
+
+    private void OnRenderedTextPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Handled) return; // an interactive inline (link, checkbox) already handled it
+        NoteText.IsVisible = true;
+        RenderedText.IsVisible = false;
+        NoteText.Focus();
+        NoteText.CaretIndex = NoteText.Text?.Length ?? 0;
+    }
+
+    private void RenderText()
+    {
+        Color body;
+        try { body = Color.Parse(_color); }
+        catch { body = Color.FromRgb(0xFF, 0xF5, 0x9E); }
+
+        RenderedText.Inlines?.Clear();
+        foreach (var inline in MarkdownRenderer.Render(
+            NoteText.Text ?? string.Empty,
+            body,
+            OnCheckboxToggle,
+            OnLinkClicked))
+        {
+            RenderedText.Inlines?.Add(inline);
+        }
+    }
+
+    private void OnCheckboxToggle(int lineIndex, bool isChecked)
+    {
+        // Implemented in Task 6.
+    }
+
+    private void OnLinkClicked(string url)
+    {
+        // Implemented in Task 5.
     }
 
     private bool IsOnAnyScreen(int x, int y, int w, int h)

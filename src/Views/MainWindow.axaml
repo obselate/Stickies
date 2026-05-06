@@ -53,6 +53,16 @@
                      TextWrapping="Wrap"
                      TextChanged="OnTextChanged"/>
 
+            <TextBlock Grid.Row="1"
+                       Name="RenderedText"
+                       Background="Transparent"
+                       Padding="12,8,12,18"
+                       FontSize="14"
+                       Foreground="#1a1a1a"
+                       TextWrapping="Wrap"
+                       IsVisible="False"
+                       PointerPressed="OnRenderedTextPressed"/>
+
             <Border Grid.Row="1"
                     Width="14" Height="14"
                     HorizontalAlignment="Right"
