@@ -1,0 +1,14 @@
+<Project Sdk="WixToolset.Sdk/5.0.0">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <OutputName>Stickies-$(Version)</OutputName>
+    <SuppressIces>ICE61</SuppressIces>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <HarvestDirectory Include="$(HarvestPath)">
+      <ComponentGroupName>HarvestedFiles</ComponentGroupName>
+      <DirectoryRefId>INSTALLFOLDER</DirectoryRefId>
+    </HarvestDirectory>
+  </ItemGroup>
+</Project>
