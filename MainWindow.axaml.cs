@@ -4,6 +4,8 @@ using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Threading;
 
 namespace Stickies;
@@ -216,5 +218,39 @@ public partial class MainWindow : Window
         var row = App.Store.Create(x, y, 280, 280);
         var w = new MainWindow(row);
         w.Show();
+    }
+
+    internal static Bitmap CaptureCornerSnapshot(MainWindow source)
+    {
+        // Capture the entire BodyBorder, then crop to BL 110x110.
+        var body = source.BodyBorder;
+        var bw = (int)Math.Ceiling(body.Bounds.Width);
+        var bh = (int)Math.Ceiling(body.Bounds.Height);
+        if (bw <= 0 || bh <= 0)
+            return new RenderTargetBitmap(new PixelSize(PeelOverlay.CornerSize, PeelOverlay.CornerSize));
+
+        var full = new RenderTargetBitmap(new PixelSize(bw, bh));
+        full.Render(body);
+
+        // Crop to the bottom-left CornerSize x CornerSize.
+        int cs = PeelOverlay.CornerSize;
+        int cropW = Math.Min(cs, bw);
+        int cropH = Math.Min(cs, bh);
+        int srcX = 0;                  // BL x = 0
+        int srcY = bh - cropH;         // BL y = bottom of body
+
+        var cropped = new RenderTargetBitmap(new PixelSize(cs, cs));
+        using (var ctx = cropped.CreateDrawingContext())
+        {
+            // Fill with transparent (RenderTargetBitmap default is transparent).
+            // Draw the cropped region of `full` into the BL of `cropped`.
+            int dstY = cs - cropH;     // anchor crop at BL of overlay region
+            ctx.DrawImage(
+                full,
+                new Rect(srcX, srcY, cropW, cropH),
+                new Rect(0, dstY, cropW, cropH));
+        }
+        full.Dispose();
+        return cropped;
     }
 }
