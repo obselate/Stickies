@@ -12,7 +12,18 @@
 
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="ProgramsFolder" Name="Programs">
-        <Directory Id="INSTALLFOLDER" Name="Stickies" />
+        <Directory Id="INSTALLFOLDER" Name="Stickies">
+          <Component Id="CleanupInstallFolder" Guid="*">
+            <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
+            <RemoveFolder Id="RemoveProgramsFolder" Directory="ProgramsFolder" On="uninstall" />
+            <RegistryValue Root="HKCU"
+                           Key="Software\obselate\Stickies"
+                           Name="installdir"
+                           Type="integer"
+                           Value="1"
+                           KeyPath="yes" />
+          </Component>
+        </Directory>
       </Directory>
     </StandardDirectory>
 
@@ -38,6 +49,7 @@
     <Feature Id="Main">
       <ComponentGroupRef Id="HarvestedFiles" />
       <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="CleanupInstallFolder" />
     </Feature>
   </Package>
 </Wix>
