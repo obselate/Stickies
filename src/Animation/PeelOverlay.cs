@@ -12,9 +12,9 @@ namespace Stickies;
 
 internal sealed class PeelOverlay : Control
 {
-    public const double DurationMs = 700.0;
+    public const double DurationMs = 300.0;
     public const int CornerSize = 110;
-    private static readonly CubicBezier Easing = new(0.5, 0, 0.4, 1);
+    private static readonly CubicBezier Easing = new(0.3, 0, 0.2, 1);
 
     public Bitmap? Snapshot { get; set; }
 
