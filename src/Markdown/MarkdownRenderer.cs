@@ -4,6 +4,7 @@ using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 
@@ -33,36 +34,36 @@ internal static class MarkdownRenderer
             // Headings (most specific first to avoid # matching ###).
             if (line.StartsWith("### ") && line.Length > 4)
             {
-                foreach (var inl in WrapHeading(line.Substring(4), 15, bodyColor)) yield return inl;
+                foreach (var inl in WrapHeading(line.Substring(4), 15, bodyColor, onLinkClicked)) yield return inl;
             }
             else if (line.StartsWith("## ") && line.Length > 3)
             {
-                foreach (var inl in WrapHeading(line.Substring(3), 17, bodyColor)) yield return inl;
+                foreach (var inl in WrapHeading(line.Substring(3), 17, bodyColor, onLinkClicked)) yield return inl;
             }
             else if (line.StartsWith("# ") && line.Length > 2)
             {
-                foreach (var inl in WrapHeading(line.Substring(2), 20, bodyColor)) yield return inl;
+                foreach (var inl in WrapHeading(line.Substring(2), 20, bodyColor, onLinkClicked)) yield return inl;
             }
             // Task list — checkbox stub (real CheckBox in Task 6).
             else if (line.StartsWith("- [ ] ") && line.Length > 6)
             {
                 yield return new Run("☐  ");
-                foreach (var inl in ScanInlines(line.Substring(6), bodyColor)) yield return inl;
+                foreach (var inl in ScanInlines(line.Substring(6), bodyColor, onLinkClicked)) yield return inl;
             }
             else if (line.StartsWith("- [x] ") && line.Length > 6)
             {
                 yield return new Run("☑  ");
-                foreach (var inl in ScanInlines(line.Substring(6), bodyColor)) yield return inl;
+                foreach (var inl in ScanInlines(line.Substring(6), bodyColor, onLinkClicked)) yield return inl;
             }
             // Regular bullet.
             else if (line.StartsWith("- ") && line.Length > 2)
             {
                 yield return new Run("•  ");
-                foreach (var inl in ScanInlines(line.Substring(2), bodyColor)) yield return inl;
+                foreach (var inl in ScanInlines(line.Substring(2), bodyColor, onLinkClicked)) yield return inl;
             }
             else
             {
-                foreach (var inl in ScanInlines(line, bodyColor)) yield return inl;
+                foreach (var inl in ScanInlines(line, bodyColor, onLinkClicked)) yield return inl;
             }
 
             if (i < lines.Length - 1)
@@ -70,17 +71,17 @@ internal static class MarkdownRenderer
         }
     }
 
-    private static IEnumerable<Inline> WrapHeading(string text, double fontSize, Color bodyColor)
+    private static IEnumerable<Inline> WrapHeading(string text, double fontSize, Color bodyColor, Action<string> onLinkClicked)
     {
         var span = new Span { FontSize = fontSize, FontWeight = FontWeight.Bold };
-        foreach (var inl in ScanInlines(text, bodyColor)) span.Inlines.Add(inl);
+        foreach (var inl in ScanInlines(text, bodyColor, onLinkClicked)) span.Inlines.Add(inl);
         yield return span;
     }
 
     // Scans inline markers in a single line of text and emits Inlines.
-    // Recognises `code`, **bold**, *italic*, and **bold *with italic***.
+    // Recognises `code`, [label](url), **bold**, *italic*, and **bold *with italic***.
     // Unclosed markers render as literal text.
-    private static IEnumerable<Inline> ScanInlines(string text, Color bodyColor)
+    private static IEnumerable<Inline> ScanInlines(string text, Color bodyColor, Action<string> onLinkClicked)
     {
         int i = 0;
         int n = text.Length;
@@ -103,6 +104,27 @@ internal static class MarkdownRenderer
                 }
             }
 
+            // Hyperlink: [label](url)
+            if (text[i] == '[')
+            {
+                int closeBracket = text.IndexOf(']', i + 1);
+                if (closeBracket >= 0
+                    && closeBracket + 1 < n
+                    && text[closeBracket + 1] == '(')
+                {
+                    int closeParen = text.IndexOf(')', closeBracket + 2);
+                    if (closeParen >= 0)
+                    {
+                        FlushLiteral(top, literal);
+                        var label = text.Substring(i + 1, closeBracket - (i + 1));
+                        var url = text.Substring(closeBracket + 2, closeParen - (closeBracket + 2));
+                        top.Add(MakeLink(label, url, onLinkClicked));
+                        i = closeParen + 1;
+                        continue;
+                    }
+                }
+            }
+
             // ** (bold) — must check before * to avoid eating the first asterisk.
             if (i + 1 < n && text[i] == '*' && text[i + 1] == '*')
             {
@@ -112,7 +134,7 @@ internal static class MarkdownRenderer
                     FlushLiteral(top, literal);
                     var inner = text.Substring(i + 2, close - (i + 2));
                     var bold = new Bold();
-                    foreach (var inl in ScanInlinesNoBold(inner, bodyColor)) bold.Inlines.Add(inl);
+                    foreach (var inl in ScanInlinesNoBold(inner, bodyColor, onLinkClicked)) bold.Inlines.Add(inl);
                     top.Add(bold);
                     i = close + 2;
                     continue;
@@ -142,7 +164,7 @@ internal static class MarkdownRenderer
     }
 
     // Same as ScanInlines but does not recurse into bold (we're already inside one).
-    private static IEnumerable<Inline> ScanInlinesNoBold(string text, Color bodyColor)
+    private static IEnumerable<Inline> ScanInlinesNoBold(string text, Color bodyColor, Action<string> onLinkClicked)
     {
         int i = 0;
         int n = text.Length;
@@ -161,6 +183,26 @@ internal static class MarkdownRenderer
                     sink.Add(MakeInlineCode(inner, bodyColor));
                     i = close + 1;
                     continue;
+                }
+            }
+
+            if (text[i] == '[')
+            {
+                int closeBracket = text.IndexOf(']', i + 1);
+                if (closeBracket >= 0
+                    && closeBracket + 1 < n
+                    && text[closeBracket + 1] == '(')
+                {
+                    int closeParen = text.IndexOf(')', closeBracket + 2);
+                    if (closeParen >= 0)
+                    {
+                        FlushLiteral(sink, literal);
+                        var label = text.Substring(i + 1, closeBracket - (i + 1));
+                        var url = text.Substring(closeBracket + 2, closeParen - (closeBracket + 2));
+                        sink.Add(MakeLink(label, url, onLinkClicked));
+                        i = closeParen + 1;
+                        continue;
+                    }
                 }
             }
 
@@ -183,6 +225,23 @@ internal static class MarkdownRenderer
         }
         FlushLiteral(sink, literal);
         return sink;
+    }
+
+    private static InlineUIContainer MakeLink(string label, string url, Action<string> onClicked)
+    {
+        var tb = new TextBlock
+        {
+            Text = label,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x1A, 0x5F, 0xD9)),
+            TextDecorations = TextDecorations.Underline,
+            Cursor = new Cursor(StandardCursorType.Hand),
+        };
+        tb.PointerPressed += (_, e) =>
+        {
+            onClicked(url);
+            e.Handled = true; // prevent click-to-edit swap
+        };
+        return new InlineUIContainer(tb) { BaselineAlignment = BaselineAlignment.Center };
     }
 
     private static InlineUIContainer MakeInlineCode(string text, Color bodyColor)

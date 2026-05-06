@@ -123,7 +123,18 @@ public partial class MainWindow : Window
 
     private void OnLinkClicked(string url)
     {
-        // Implemented in Task 5.
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+            // Silently ignore launch failures — invalid URL or no default browser.
+        }
     }
 
     private bool IsOnAnyScreen(int x, int y, int w, int h)
