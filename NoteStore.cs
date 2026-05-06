@@ -53,6 +53,7 @@ public sealed class NoteStore
         AddColumnIfMissing(c, "height", "INTEGER NOT NULL DEFAULT 280");
         AddColumnIfMissing(c, "deleted_at", "INTEGER");
         AddColumnIfMissing(c, "pinned", "INTEGER NOT NULL DEFAULT 1");
+        AddColumnIfMissing(c, "color", "TEXT NOT NULL DEFAULT '#FFF59E'");
     }
 
     private static void AddColumnIfMissing(SqliteConnection c, string col, string type)
@@ -68,9 +69,9 @@ public sealed class NoteStore
         alter.ExecuteNonQuery();
     }
 
-    public sealed record NoteRow(long Id, string Text, int? X, int? Y, int Width, int Height, bool Pinned);
+    public sealed record NoteRow(long Id, string Text, int? X, int? Y, int Width, int Height, bool Pinned, string Color);
 
-    private const string SelectColumns = "id, text, x, y, width, height, pinned";
+    private const string SelectColumns = "id, text, x, y, width, height, pinned, color";
 
     private static NoteRow ReadRow(SqliteDataReader r) => new(
         r.GetInt64(0),
@@ -79,7 +80,8 @@ public sealed class NoteStore
         r.IsDBNull(3) ? null : r.GetInt32(3),
         r.GetInt32(4),
         r.GetInt32(5),
-        r.GetInt32(6) != 0);
+        r.GetInt32(6) != 0,
+        r.GetString(7));
 
     public List<NoteRow> LoadActive()
     {
@@ -117,7 +119,18 @@ public sealed class NoteStore
         cmd.Parameters.Add("@h", SqliteType.Integer).Value = height;
         cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var id = Convert.ToInt64(cmd.ExecuteScalar() ?? 0L);
-        return new NoteRow(id, "", x, y, width, height, true);
+        return new NoteRow(id, "", x, y, width, height, true, "#FFF59E");
+    }
+
+    public void UpdateColor(long id, string color)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE notes SET color=@c, updated_at=@ts WHERE id=@id;";
+        cmd.Parameters.Add("@c", SqliteType.Text).Value = color;
+        cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        cmd.Parameters.Add("@id", SqliteType.Integer).Value = id;
+        cmd.ExecuteNonQuery();
     }
 
     public void UpdatePinned(long id, bool pinned)

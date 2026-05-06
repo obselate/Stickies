@@ -1,7 +1,9 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
 using Avalonia.Input;
+using Avalonia.Media;
 using Avalonia.Threading;
 
 namespace Stickies;
@@ -13,6 +15,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _saveBoundsTimer;
     private bool _ready;
     private bool _pinned;
+    private string _color = "#FFF59E";
 
     public long NoteId => _noteId;
 
@@ -31,6 +34,7 @@ public partial class MainWindow : Window
 
         NoteText.Text = row.Text;
         ApplyPinned(row.Pinned);
+        ApplyColor(row.Color);
 
         _saveTextTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         _saveTextTimer.Tick += OnSaveTextTick;
@@ -141,6 +145,57 @@ public partial class MainWindow : Window
         Topmost = pinned;
         PinMenuItem.Header = pinned ? "Unpin from top" : "Pin on top";
     }
+
+    private void OnSwatchPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Ellipse el || el.Tag is not string hex) return;
+        ApplyColor(hex);
+        App.Store.UpdateColor(_noteId, hex);
+        NoteMenu.Close();
+        e.Handled = true;
+    }
+
+    private void OnCustomColorPressed(object? sender, PointerPressedEventArgs e)
+    {
+        e.Handled = true;
+        var handle = TryGetPlatformHandle();
+        var owner = handle?.Handle ?? IntPtr.Zero;
+        var current = Color.Parse(_color);
+        var picked = ColorDialog.Show(owner, current);
+        if (picked is null) return;
+        var hex = $"#{picked.Value.R:X2}{picked.Value.G:X2}{picked.Value.B:X2}";
+        ApplyColor(hex);
+        App.Store.UpdateColor(_noteId, hex);
+        NoteMenu.Close();
+    }
+
+    private void ApplyColor(string hex)
+    {
+        Color body;
+        try { body = Color.Parse(hex); }
+        catch { return; }
+        _color = hex;
+        BodyBorder.Background = new SolidColorBrush(body);
+        HeaderBar.Background = new SolidColorBrush(Darker(body, 0.92));
+        UpdateSwatchSelection();
+    }
+
+    private void UpdateSwatchSelection()
+    {
+        var selected = new SolidColorBrush(Color.FromRgb(0x4A, 0x90, 0xE2));
+        var normal = new SolidColorBrush(Color.FromArgb(0x60, 0, 0, 0));
+        foreach (var sw in new[] { Sw1, Sw2, Sw3, Sw4, Sw5 })
+        {
+            bool current = sw.Tag is string h && string.Equals(h, _color, StringComparison.OrdinalIgnoreCase);
+            sw.Stroke = current ? selected : normal;
+            sw.StrokeThickness = current ? 2.5 : 1;
+        }
+    }
+
+    private static Color Darker(Color c, double f) => Color.FromRgb(
+        (byte)Math.Clamp(c.R * f, 0, 255),
+        (byte)Math.Clamp(c.G * f, 0, 255),
+        (byte)Math.Clamp(c.B * f, 0, 255));
 
     private void DeleteNote()
     {

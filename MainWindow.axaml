@@ -9,19 +9,36 @@
         FontFamily="Segoe UI"
         Title="Sticky">
 
-    <Border Background="#FFF59E"
+    <Border Name="BodyBorder"
+            Background="#FFF59E"
             BoxShadow="2 4 16 0 #50000000"
             CornerRadius="2">
         <Border.ContextMenu>
-            <ContextMenu>
+            <ContextMenu Name="NoteMenu">
                 <MenuItem Header="New note" InputGesture="Ctrl+N" Click="OnNewClick"/>
                 <MenuItem Name="PinMenuItem" Click="OnPinClick"/>
+                <Separator/>
+                <MenuItem Padding="6,4" StaysOpenOnClick="True">
+                    <MenuItem.Header>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Ellipse Name="Sw1" Tag="#FFF59E" Width="20" Height="20" Fill="#FFF59E" Stroke="#60000000" StrokeThickness="1" Cursor="Hand" PointerPressed="OnSwatchPressed" ToolTip.Tip="Yellow"/>
+                            <Ellipse Name="Sw2" Tag="#FFB6C1" Width="20" Height="20" Fill="#FFB6C1" Stroke="#60000000" StrokeThickness="1" Cursor="Hand" PointerPressed="OnSwatchPressed" ToolTip.Tip="Pink"/>
+                            <Ellipse Name="Sw3" Tag="#A8DADC" Width="20" Height="20" Fill="#A8DADC" Stroke="#60000000" StrokeThickness="1" Cursor="Hand" PointerPressed="OnSwatchPressed" ToolTip.Tip="Blue"/>
+                            <Ellipse Name="Sw4" Tag="#B7E4C7" Width="20" Height="20" Fill="#B7E4C7" Stroke="#60000000" StrokeThickness="1" Cursor="Hand" PointerPressed="OnSwatchPressed" ToolTip.Tip="Green"/>
+                            <Ellipse Name="Sw5" Tag="#D3D3D3" Width="20" Height="20" Fill="#D3D3D3" Stroke="#60000000" StrokeThickness="1" Cursor="Hand" PointerPressed="OnSwatchPressed" ToolTip.Tip="Gray"/>
+                            <Border Name="SwCustom" Width="20" Height="20" CornerRadius="10" Background="#F0F0F0" BorderBrush="#60000000" BorderThickness="1" Cursor="Hand" PointerPressed="OnCustomColorPressed" ToolTip.Tip="Custom color…">
+                                <TextBlock Text="…" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#444" Margin="0,-4,0,0"/>
+                            </Border>
+                        </StackPanel>
+                    </MenuItem.Header>
+                </MenuItem>
                 <Separator/>
                 <MenuItem Header="Delete" InputGesture="Ctrl+D" Click="OnDeleteClick"/>
             </ContextMenu>
         </Border.ContextMenu>
         <Grid RowDefinitions="22,*">
             <Border Grid.Row="0"
+                    Name="HeaderBar"
                     Background="#FFEB80"
                     PointerPressed="OnDragBarPressed"/>
 
