@@ -51,8 +51,8 @@ internal sealed class PeelOverlay : Control
         base.Render(context);
         var bounds = new Rect(0, 0, Bounds.Width, Bounds.Height);
         var tex = GetOrDecodeSkBitmap();
-        // For Task 5, t is hardcoded to 0 — we draw the static front-face only.
-        context.Custom(new PeelDrawOp(bounds, tex, t: 0.0, cornerSize: CornerSize));
+        double t = Math.Clamp(_watch.Elapsed.TotalMilliseconds / DurationMs, 0.0, 1.0);
+        context.Custom(new PeelDrawOp(bounds, tex, t, cornerSize: CornerSize));
     }
 
     private void OnTick(object? sender, EventArgs e)

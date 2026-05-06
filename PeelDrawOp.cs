@@ -38,27 +38,44 @@ internal sealed class PeelDrawOp : ICustomDrawOperation
         var canvas = lease.SkCanvas;
 
         canvas.Save();
-
-        // Origin is overlay's top-left in screen DIPs. Move to overlay's BL,
-        // because the corner-area math is anchored at (0,0) = overlay BL.
         canvas.Translate((float)_bounds.X, (float)_bounds.Y + _cornerSize);
 
-        // Front-face triangle: polygon(0 0, 100% 100%, 0 100%) within the
-        // CornerSize box. Anchored at overlay BL means y is negative-up,
-        // so we'll flip y-axis convention here.
-        // After Translate above, (0,0) = BL of overlay region, x→right, y→down.
-        // CornerSize box occupies (0, -cornerSize) to (cornerSize, 0) in this frame.
+        float angleDeg = (float)(180.0 * _t);
 
+        // Perspective 600px: M[3,2] = -1/600.
+        var perspective = SKMatrix44.CreateIdentity();
+        perspective[3, 2] = -1f / 600f;
+
+        // Hinge origin = TL of corner-area = (0, -cornerSize) in our translated frame.
+        var toOrigin = SKMatrix44.CreateTranslation(0, _cornerSize, 0);
+        var fromOrigin = SKMatrix44.CreateTranslation(0, -_cornerSize, 0);
+
+        // Rotate around axis (1, 1, 0) by 180·t degrees.
+        var rot = SKMatrix44.CreateRotation(1, 1, 0,
+            (float)(angleDeg * Math.PI / 180.0));
+
+        // Compose: M = perspective × fromOrigin × rot × toOrigin (right-multiply order).
+        var m = SKMatrix44.CreateIdentity();
+        m.PostConcat(perspective);
+        m.PostConcat(fromOrigin);
+        m.PostConcat(rot);
+        m.PostConcat(toOrigin);
+
+        // Apply 4x4 to 2D canvas: extract 3x3 with perspective row preserved.
+        var m2d = m.Matrix;
+        canvas.Concat(ref m2d);
+
+        // Front-face triangle.
         using var path = new SKPath();
-        path.MoveTo(0, -_cornerSize);                     // TL of corner-area
-        path.LineTo(_cornerSize, 0);                      // BR of corner-area
-        path.LineTo(0, 0);                                // BL of corner-area (right angle)
+        path.MoveTo(0, -_cornerSize);     // TL
+        path.LineTo(_cornerSize, 0);      // BR
+        path.LineTo(0, 0);                // BL (right angle)
         path.Close();
 
-        if (_texture is not null)
+        bool frontVisible = _t < 0.5;
+
+        if (frontVisible && _texture is not null)
         {
-            // Map the texture so its BL aligns with the triangle's BL,
-            // texture extends rightward and upward over the cornerSize box.
             using var shader = SKShader.CreateBitmap(
                 _texture,
                 SKShaderTileMode.Clamp,
@@ -71,14 +88,14 @@ internal sealed class PeelDrawOp : ICustomDrawOperation
             };
             canvas.DrawPath(path, paint);
         }
-        else
+        else if (!frontVisible)
         {
-            using var fallback = new SKPaint
+            using var paint = new SKPaint
             {
-                Color = new SKColor(0xFF, 0xF5, 0x9E, 0xFF),
+                Color = new SKColor(0xC9, 0xB8, 0x53, 0xFF),
                 IsAntialias = true
             };
-            canvas.DrawPath(path, fallback);
+            canvas.DrawPath(path, paint);
         }
 
         canvas.Restore();
