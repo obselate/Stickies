@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "Stickies",
+  "project_id": "704c0721-6fe0-410d-ab49-39a1c2ee82f9"
+}
