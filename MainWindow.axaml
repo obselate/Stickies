@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Stickies.MainWindow"
+        Width="280" Height="280"
+        MinWidth="180" MinHeight="140"
+        SystemDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        FontFamily="fonts:Inter#Inter"
+        Title="Sticky">
+
+    <Border Background="#FFF59E"
+            BoxShadow="2 4 16 0 #50000000"
+            CornerRadius="2">
+        <Grid RowDefinitions="22,*">
+            <Border Grid.Row="0"
+                    Background="#FFEB80"
+                    PointerPressed="OnDragBarPressed"/>
+
+            <TextBox Grid.Row="1"
+                     Name="NoteText"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Padding="12,8,12,12"
+                     FontSize="14"
+                     Foreground="#1a1a1a"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     TextChanged="OnTextChanged"/>
+        </Grid>
+    </Border>
+</Window>
