@@ -7,11 +7,19 @@
         TransparencyLevelHint="Transparent"
         Background="Transparent"
         FontFamily="Segoe UI"
+        Topmost="True"
         Title="Sticky">
 
     <Border Background="#FFF59E"
             BoxShadow="2 4 16 0 #50000000"
             CornerRadius="2">
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="New note" InputGesture="Ctrl+N" Click="OnNewClick"/>
+                <Separator/>
+                <MenuItem Header="Delete" InputGesture="Ctrl+D" Click="OnDeleteClick"/>
+            </ContextMenu>
+        </Border.ContextMenu>
         <Grid RowDefinitions="22,*">
             <Border Grid.Row="0"
                     Background="#FFEB80"

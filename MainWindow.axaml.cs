@@ -118,12 +118,21 @@ public partial class MainWindow : Window
         }
         else if (e.Key == Key.D)
         {
-            App.Store.SoftDelete(_noteId);
-            _saveTextTimer.Stop();
-            _saveBoundsTimer.Stop();
-            Close();
+            DeleteNote();
             e.Handled = true;
         }
+    }
+
+    private void OnNewClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => SpawnNew(this);
+
+    private void OnDeleteClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => DeleteNote();
+
+    private void DeleteNote()
+    {
+        App.Store.SoftDelete(_noteId);
+        _saveTextTimer.Stop();
+        _saveBoundsTimer.Stop();
+        Close();
     }
 
     public static void SpawnNew(MainWindow? near)
