@@ -1,0 +1,45 @@
+name: ci
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: 'Stickies.csproj'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Publish AOT (with warning gate)
+        run: |
+          dotnet publish -c Release -r win-x64 --no-restore `
+            -p:TreatWarningsAsErrors=true `
+            -p:WarningsNotAsErrors=IL2104
+
+      - name: Size budget
+        shell: pwsh
+        run: |
+          $publishDir = "bin\Release\net9.0\win-x64\publish"
+          $exe = (Get-Item "$publishDir\Stickies.exe").Length
+          $dir = (Get-ChildItem $publishDir -Recurse | Measure-Object Length -Sum).Sum
+          Write-Host "Stickies.exe: $([math]::Round($exe/1MB,2)) MB  /  publish/: $([math]::Round($dir/1MB,2)) MB"
+          if ($exe -gt 18MB) { throw "Stickies.exe = $exe bytes (> 18MB cap)" }
+          if ($dir -gt 30MB) { throw "publish/ total = $dir bytes (> 30MB cap)" }
+
+      - name: Build MSI (validation only — no upload)
+        run: |
+          dotnet build installer/Stickies.wixproj -c Release `
+            -p:HarvestPath=bin\Release\net9.0\win-x64\publish
