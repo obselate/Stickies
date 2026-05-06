@@ -69,13 +69,13 @@ public partial class MainWindow : Window
         {
             RenderText();
             NoteText.IsVisible = false;
-            RenderedText.IsVisible = true;
+            RenderedScroll.IsVisible = true;
         }
     }
 
     private void OnNoteFocusGot(object? sender, GotFocusEventArgs e)
     {
-        RenderedText.IsVisible = false;
+        RenderedScroll.IsVisible = false;
         NoteText.IsVisible = true;
     }
 
@@ -87,14 +87,14 @@ public partial class MainWindow : Window
         if (string.IsNullOrEmpty(NoteText.Text)) return;
         RenderText();
         NoteText.IsVisible = false;
-        RenderedText.IsVisible = true;
+        RenderedScroll.IsVisible = true;
     }
 
     private void OnRenderedTextPressed(object? sender, PointerPressedEventArgs e)
     {
         if (e.Handled) return; // an interactive inline (link, checkbox) already handled it
         NoteText.IsVisible = true;
-        RenderedText.IsVisible = false;
+        RenderedScroll.IsVisible = false;
         NoteText.Focus();
         NoteText.CaretIndex = NoteText.Text?.Length ?? 0;
     }
@@ -251,6 +251,12 @@ public partial class MainWindow : Window
         BodyBorder.Background = new SolidColorBrush(body);
         HeaderBar.Background = new SolidColorBrush(Darker(body, 0.92));
         UpdateSwatchSelection();
+
+        // If we're currently showing the rendered view, re-render so code-span
+        // backgrounds pick up the new body colour immediately (rather than
+        // waiting for the next blur).
+        if (RenderedScroll != null && RenderedScroll.IsVisible)
+            RenderText();
     }
 
     private void UpdateSwatchSelection()

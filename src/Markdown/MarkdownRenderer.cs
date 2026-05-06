@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.Documents;
+using Avalonia.Layout;
 using Avalonia.Media;
 
 namespace Stickies;
@@ -30,36 +33,36 @@ internal static class MarkdownRenderer
             // Headings (most specific first to avoid # matching ###).
             if (line.StartsWith("### ") && line.Length > 4)
             {
-                foreach (var inl in WrapHeading(line.Substring(4), fontSize: 15)) yield return inl;
+                foreach (var inl in WrapHeading(line.Substring(4), 15, bodyColor)) yield return inl;
             }
             else if (line.StartsWith("## ") && line.Length > 3)
             {
-                foreach (var inl in WrapHeading(line.Substring(3), fontSize: 17)) yield return inl;
+                foreach (var inl in WrapHeading(line.Substring(3), 17, bodyColor)) yield return inl;
             }
             else if (line.StartsWith("# ") && line.Length > 2)
             {
-                foreach (var inl in WrapHeading(line.Substring(2), fontSize: 20)) yield return inl;
+                foreach (var inl in WrapHeading(line.Substring(2), 20, bodyColor)) yield return inl;
             }
             // Task list — checkbox stub (real CheckBox in Task 6).
             else if (line.StartsWith("- [ ] ") && line.Length > 6)
             {
                 yield return new Run("☐  ");
-                foreach (var inl in ScanInlines(line.Substring(6))) yield return inl;
+                foreach (var inl in ScanInlines(line.Substring(6), bodyColor)) yield return inl;
             }
             else if (line.StartsWith("- [x] ") && line.Length > 6)
             {
                 yield return new Run("☑  ");
-                foreach (var inl in ScanInlines(line.Substring(6))) yield return inl;
+                foreach (var inl in ScanInlines(line.Substring(6), bodyColor)) yield return inl;
             }
             // Regular bullet.
             else if (line.StartsWith("- ") && line.Length > 2)
             {
                 yield return new Run("•  ");
-                foreach (var inl in ScanInlines(line.Substring(2))) yield return inl;
+                foreach (var inl in ScanInlines(line.Substring(2), bodyColor)) yield return inl;
             }
             else
             {
-                foreach (var inl in ScanInlines(line)) yield return inl;
+                foreach (var inl in ScanInlines(line, bodyColor)) yield return inl;
             }
 
             if (i < lines.Length - 1)
@@ -67,17 +70,17 @@ internal static class MarkdownRenderer
         }
     }
 
-    private static IEnumerable<Inline> WrapHeading(string text, double fontSize)
+    private static IEnumerable<Inline> WrapHeading(string text, double fontSize, Color bodyColor)
     {
         var span = new Span { FontSize = fontSize, FontWeight = FontWeight.Bold };
-        foreach (var inl in ScanInlines(text)) span.Inlines.Add(inl);
+        foreach (var inl in ScanInlines(text, bodyColor)) span.Inlines.Add(inl);
         yield return span;
     }
 
     // Scans inline markers in a single line of text and emits Inlines.
-    // Recognises **bold**, *italic*, and **bold *with italic***.
+    // Recognises `code`, **bold**, *italic*, and **bold *with italic***.
     // Unclosed markers render as literal text.
-    private static IEnumerable<Inline> ScanInlines(string text)
+    private static IEnumerable<Inline> ScanInlines(string text, Color bodyColor)
     {
         int i = 0;
         int n = text.Length;
@@ -86,7 +89,21 @@ internal static class MarkdownRenderer
 
         while (i < n)
         {
-            // Look for ** (bold) — must check before * to avoid eating the first asterisk.
+            // Inline code (highest precedence — leaf only, no nesting).
+            if (text[i] == '`')
+            {
+                int close = text.IndexOf('`', i + 1);
+                if (close >= 0)
+                {
+                    FlushLiteral(top, literal);
+                    var inner = text.Substring(i + 1, close - (i + 1));
+                    top.Add(MakeInlineCode(inner, bodyColor));
+                    i = close + 1;
+                    continue;
+                }
+            }
+
+            // ** (bold) — must check before * to avoid eating the first asterisk.
             if (i + 1 < n && text[i] == '*' && text[i + 1] == '*')
             {
                 int close = FindClosingDouble(text, i + 2);
@@ -95,7 +112,7 @@ internal static class MarkdownRenderer
                     FlushLiteral(top, literal);
                     var inner = text.Substring(i + 2, close - (i + 2));
                     var bold = new Bold();
-                    foreach (var inl in ScanInlinesNoBold(inner)) bold.Inlines.Add(inl);
+                    foreach (var inl in ScanInlinesNoBold(inner, bodyColor)) bold.Inlines.Add(inl);
                     top.Add(bold);
                     i = close + 2;
                     continue;
@@ -125,7 +142,7 @@ internal static class MarkdownRenderer
     }
 
     // Same as ScanInlines but does not recurse into bold (we're already inside one).
-    private static IEnumerable<Inline> ScanInlinesNoBold(string text)
+    private static IEnumerable<Inline> ScanInlinesNoBold(string text, Color bodyColor)
     {
         int i = 0;
         int n = text.Length;
@@ -134,6 +151,19 @@ internal static class MarkdownRenderer
 
         while (i < n)
         {
+            if (text[i] == '`')
+            {
+                int close = text.IndexOf('`', i + 1);
+                if (close >= 0)
+                {
+                    FlushLiteral(sink, literal);
+                    var inner = text.Substring(i + 1, close - (i + 1));
+                    sink.Add(MakeInlineCode(inner, bodyColor));
+                    i = close + 1;
+                    continue;
+                }
+            }
+
             if (text[i] == '*' && (i + 1 >= n || text[i + 1] != '*'))
             {
                 int close = FindClosingSingle(text, i + 1);
@@ -153,6 +183,24 @@ internal static class MarkdownRenderer
         }
         FlushLiteral(sink, literal);
         return sink;
+    }
+
+    private static InlineUIContainer MakeInlineCode(string text, Color bodyColor)
+    {
+        var bg = DarkenInHsl(bodyColor, 12);
+        var border = new Border
+        {
+            Background = new SolidColorBrush(bg),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(4, 0),
+            Child = new TextBlock
+            {
+                Text = text,
+                FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
+                FontSize = 13,
+            }
+        };
+        return new InlineUIContainer(border) { BaselineAlignment = BaselineAlignment.Center };
     }
 
     private static void FlushLiteral(List<Inline> sink, StringBuilder literal)
@@ -177,11 +225,60 @@ internal static class MarkdownRenderer
         {
             if (text[j] == '*')
             {
-                // Single * must not be followed by another * (that's bold's territory).
                 if (j + 1 < text.Length && text[j + 1] == '*') continue;
                 return j;
             }
         }
         return -1;
+    }
+
+    private static Color DarkenInHsl(Color rgb, double percent)
+    {
+        double r = rgb.R / 255.0, g = rgb.G / 255.0, b = rgb.B / 255.0;
+        double max = Math.Max(r, Math.Max(g, b));
+        double min = Math.Min(r, Math.Min(g, b));
+        double h = 0, s, l = (max + min) / 2.0;
+
+        if (Math.Abs(max - min) < 1e-9)
+        {
+            h = 0; s = 0;
+        }
+        else
+        {
+            double d = max - min;
+            s = l > 0.5 ? d / (2.0 - max - min) : d / (max + min);
+            if (max == r) h = ((g - b) / d) + (g < b ? 6 : 0);
+            else if (max == g) h = ((b - r) / d) + 2;
+            else h = ((r - g) / d) + 4;
+            h /= 6;
+        }
+
+        l = Math.Max(0, Math.Min(1, l - percent / 100.0));
+
+        double r2, g2, b2;
+        if (Math.Abs(s) < 1e-9)
+        {
+            r2 = g2 = b2 = l;
+        }
+        else
+        {
+            double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            double p = 2 * l - q;
+            r2 = HueToRgb(p, q, h + 1.0 / 3.0);
+            g2 = HueToRgb(p, q, h);
+            b2 = HueToRgb(p, q, h - 1.0 / 3.0);
+        }
+
+        return Color.FromArgb(rgb.A, (byte)(r2 * 255), (byte)(g2 * 255), (byte)(b2 * 255));
+    }
+
+    private static double HueToRgb(double p, double q, double t)
+    {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1.0 / 6.0) return p + (q - p) * 6 * t;
+        if (t < 1.0 / 2.0) return q;
+        if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6;
+        return p;
     }
 }

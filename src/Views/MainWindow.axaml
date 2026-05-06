@@ -53,15 +53,20 @@
                      TextWrapping="Wrap"
                      TextChanged="OnTextChanged"/>
 
-            <TextBlock Grid.Row="1"
-                       Name="RenderedText"
-                       Background="Transparent"
-                       Padding="12,8,12,18"
-                       FontSize="14"
-                       Foreground="#1a1a1a"
-                       TextWrapping="Wrap"
-                       IsVisible="False"
-                       PointerPressed="OnRenderedTextPressed"/>
+            <ScrollViewer Grid.Row="1"
+                          Name="RenderedScroll"
+                          Background="Transparent"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto"
+                          IsVisible="False"
+                          PointerPressed="OnRenderedTextPressed">
+                <TextBlock Name="RenderedText"
+                           Background="Transparent"
+                           Padding="12,8,12,18"
+                           FontSize="14"
+                           Foreground="#1a1a1a"
+                           TextWrapping="Wrap"/>
+            </ScrollViewer>
 
             <Border Grid.Row="1"
                     Width="14" Height="14"
