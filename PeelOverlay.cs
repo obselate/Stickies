@@ -1,8 +1,12 @@
 using System;
 using System.Diagnostics;
+using System.IO;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using SkiaSharp;
 
 namespace Stickies;
 
@@ -18,6 +22,7 @@ internal sealed class PeelOverlay : Control
     private readonly Stopwatch _watch = new();
     private DispatcherTimer? _timer;
     private bool _completedFired;
+    private SKBitmap? _skSnapshot;
 
     public void Start()
     {
@@ -27,6 +32,27 @@ internal sealed class PeelOverlay : Control
         _timer.Tick += OnTick;
         _timer.Start();
         InvalidateVisual();
+    }
+
+    private SKBitmap? GetOrDecodeSkBitmap()
+    {
+        if (_skSnapshot is not null) return _skSnapshot;
+        if (Snapshot is null) return null;
+
+        using var ms = new MemoryStream();
+        Snapshot.Save(ms);
+        ms.Position = 0;
+        _skSnapshot = SKBitmap.Decode(ms);
+        return _skSnapshot;
+    }
+
+    public override void Render(DrawingContext context)
+    {
+        base.Render(context);
+        var bounds = new Rect(0, 0, Bounds.Width, Bounds.Height);
+        var tex = GetOrDecodeSkBitmap();
+        // For Task 5, t is hardcoded to 0 — we draw the static front-face only.
+        context.Custom(new PeelDrawOp(bounds, tex, t: 0.0, cornerSize: CornerSize));
     }
 
     private void OnTick(object? sender, EventArgs e)
@@ -54,8 +80,9 @@ internal sealed class PeelOverlay : Control
     protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
         StopInternal();
-        // Suppress Completed if we were torn out before finishing.
         _completedFired = true;
+        _skSnapshot?.Dispose();
+        _skSnapshot = null;
         Snapshot?.Dispose();
         Snapshot = null;
         base.OnDetachedFromVisualTree(e);
