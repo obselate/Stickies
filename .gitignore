@@ -1,3 +1,4 @@
+# Build output
 bin/
 obj/
 *.user
@@ -8,3 +9,19 @@ obj/
 *.db
 .beads-credential-key
 .superpowers/
+
+# Secrets — never commit
+.env
+.env.*
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
