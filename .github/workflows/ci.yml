@@ -47,5 +47,4 @@ jobs:
       - name: Build MSI (validation only — no upload)
         run: |
           dotnet build installer/Stickies.wixproj -c Release `
-            -p:Version=0.0.0 `
-            -p:HarvestPath="$pwd\bin\Release\net9.0\win-x64\publish"
+            -p:Version=0.0.0

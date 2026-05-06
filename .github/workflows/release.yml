@@ -65,8 +65,7 @@ jobs:
       - name: Build MSI
         run: |
           dotnet build installer/Stickies.wixproj -c Release `
-            -p:Version=$env:VERSION `
-            -p:HarvestPath="$pwd\bin\Release\net9.0\win-x64\publish"
+            -p:Version=$env:VERSION
 
       - name: Package zip
         shell: pwsh

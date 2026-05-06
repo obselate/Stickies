@@ -43,7 +43,7 @@
     </StandardDirectory>
 
     <ComponentGroup Id="HarvestedFiles" Directory="INSTALLFOLDER">
-      <Files Include="$(var.HarvestPath)\**" />
+      <Files Include="..\bin\Release\net9.0\win-x64\publish\**\*" />
     </ComponentGroup>
 
     <Feature Id="Main">
