@@ -13,6 +13,8 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _saveBoundsTimer;
     private bool _ready;
 
+    public long NoteId => _noteId;
+
     public MainWindow() : this(App.Store.Create(null, null, 280, 280)) { }
 
     public MainWindow(NoteStore.NoteRow row)

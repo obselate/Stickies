@@ -89,6 +89,23 @@ public sealed class NoteStore
         return list;
     }
 
+    public NoteRow? LoadById(long id)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT id, text, x, y, width, height FROM notes WHERE id=@id AND deleted_at IS NULL;";
+        cmd.Parameters.Add("@id", SqliteType.Integer).Value = id;
+        using var r = cmd.ExecuteReader();
+        if (!r.Read()) return null;
+        return new NoteRow(
+            r.GetInt64(0),
+            r.GetString(1),
+            r.IsDBNull(2) ? null : r.GetInt32(2),
+            r.IsDBNull(3) ? null : r.GetInt32(3),
+            r.GetInt32(4),
+            r.GetInt32(5));
+    }
+
     public NoteRow Create(int? x, int? y, int width, int height)
     {
         using var c = Open();

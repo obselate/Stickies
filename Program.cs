@@ -1,13 +1,66 @@
 using System;
+using System.IO;
+using System.IO.Pipes;
+using System.Threading;
 using Avalonia;
 
 namespace Stickies;
 
 internal static class Program
 {
+    public const string MutexName = @"Local\Stickies.SingleInstance";
+    public const string PipeName = "Stickies.IPC";
+
+    private static Mutex? _mutex;
+
     [STAThread]
-    public static void Main(string[] args) =>
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    public static void Main(string[] args)
+    {
+        var verb = ParseVerb(args);
+
+        _mutex = new Mutex(initiallyOwned: true, MutexName, out bool createdNew);
+        if (!createdNew)
+        {
+            SendVerb(verb);
+            return;
+        }
+
+        try
+        {
+            App.StartupVerb = verb;
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        finally
+        {
+            try { _mutex.ReleaseMutex(); } catch { }
+            _mutex.Dispose();
+        }
+    }
+
+    private static string ParseVerb(string[] args)
+    {
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "--new") return "NEW";
+            if (args[i] == "--show") return "SHOW";
+        }
+        return "SHOW";
+    }
+
+    private static void SendVerb(string verb)
+    {
+        try
+        {
+            using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out);
+            client.Connect(2000);
+            using var w = new StreamWriter(client) { AutoFlush = true };
+            w.WriteLine(verb);
+        }
+        catch
+        {
+            // running instance is unreachable; nothing useful to do without a UI
+        }
+    }
 
     public static AppBuilder BuildAvaloniaApp() =>
         AppBuilder.Configure<App>()
