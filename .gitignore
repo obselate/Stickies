@@ -8,7 +8,14 @@ obj/
 .dolt/
 *.db
 .beads-credential-key
+.beads/
 .superpowers/
+
+# Agent / assistant state — local only
+.claude/
+CLAUDE.md
+AGENTS.md
+docs/
 
 # Secrets — never commit
 .env
