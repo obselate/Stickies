@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Layout;
@@ -229,6 +231,9 @@ public partial class MainWindow : Window
 
         int srcW = (int)near.Width;
         int srcH = (int)near.Height;
+        Color bodyColor;
+        try { bodyColor = Color.Parse(near._color); }
+        catch { bodyColor = Color.FromRgb(0xFF, 0xF5, 0x9E); }
 
         Bitmap snapshot;
         try
@@ -237,15 +242,14 @@ public partial class MainWindow : Window
         }
         catch
         {
-            // Snapshot failed (window not yet measured, etc.) — fall back to instant spawn.
+            // Snapshot failed (window not yet measured, etc.) — fall back to instant
+            // replacement using the same relocate-source/new-takes-original-spot model.
             near._isAnimating = false;
-            var rowF = App.Store.Create(near.Position.X, near.Position.Y, srcW, srcH);
-            var wF = new MainWindow(rowF);
-            wF.Show();
+            SpawnReplacement(near, srcW, srcH);
             return;
         }
 
-        var overlay = new PeelOverlay { Snapshot = snapshot };
+        var overlay = new PeelOverlay { Snapshot = snapshot, BodyColor = bodyColor };
         Grid.SetRow(overlay, 0);
         Grid.SetRowSpan(overlay, 2);
         overlay.HorizontalAlignment = HorizontalAlignment.Left;
@@ -256,20 +260,122 @@ public partial class MainWindow : Window
 
         overlay.Completed += () =>
         {
-            // Detach overlay from near's grid (Snapshot/SK bitmap disposed in OnDetached).
             near.BodyGrid.Children.Remove(overlay);
             near._isAnimating = false;
-
-            // Read near.Position FRESH at completion (in case window was dragged
-            // during the animation).
-            var pos = near.Position;
-            var row = App.Store.Create(pos.X, pos.Y, srcW, srcH);
-            var w = new MainWindow(row);
-            w.Show();
+            SpawnReplacement(near, srcW, srcH);
         };
 
         near.BodyGrid.Children.Add(overlay);
         overlay.Start();
+    }
+
+    // After the peel: relocate the source ("old") sticky to nearby available
+    // space and create the new sticky at the source's original position. The
+    // new sticky fades in; the old slides via AnimateMove.
+    private static void SpawnReplacement(MainWindow source, int width, int height)
+    {
+        var newNotePos = source.Position;
+        var oldNewPos = FindAvailableSpace(source, newNotePos, width, height);
+
+        AnimateMove(source, oldNewPos);
+
+        var row = App.Store.Create(newNotePos.X, newNotePos.Y, width, height);
+        var fresh = new MainWindow(row);
+        fresh.Opacity = 0;
+        fresh.Show();
+        FadeIn(fresh, durationMs: 200);
+    }
+
+    // Spirals out from the source's current position in cardinal-then-diagonal
+    // order at increasing distances. Skips positions that overlap any other
+    // open note or fall within margin of a screen edge. Best-effort fallback
+    // when the screen is too crowded: small offset clamped to screen.
+    private static PixelPoint FindAvailableSpace(
+        MainWindow source,
+        PixelPoint newNotePos,
+        int width,
+        int height)
+    {
+        const int margin = 40;
+        const int gap = 12;
+
+        var others = new List<PixelRect>();
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            foreach (var w in desktop.Windows)
+            {
+                if (w is MainWindow mw && mw != source && mw.IsVisible)
+                {
+                    others.Add(new PixelRect(mw.Position, new PixelSize((int)mw.Width, (int)mw.Height)));
+                }
+            }
+        }
+        // The new note will occupy the source's CURRENT position — treat as occupied.
+        others.Add(new PixelRect(newNotePos, new PixelSize(width, height)));
+
+        var screen = source.Screens?.ScreenFromWindow(source);
+        var screenArea = screen?.WorkingArea ?? new PixelRect(0, 0, 1920, 1080);
+
+        var directions = new (int dx, int dy)[]
+        {
+            (1, 0), (0, 1), (-1, 0), (0, -1),
+            (1, 1), (-1, 1), (1, -1), (-1, -1),
+        };
+
+        for (int dist = 1; dist <= 5; dist++)
+        {
+            foreach (var (dx, dy) in directions)
+            {
+                int nx = newNotePos.X + dx * (width + gap) * dist;
+                int ny = newNotePos.Y + dy * (height + gap) * dist;
+
+                if (nx < screenArea.X + margin) continue;
+                if (ny < screenArea.Y + margin) continue;
+                if (nx + width > screenArea.X + screenArea.Width - margin) continue;
+                if (ny + height > screenArea.Y + screenArea.Height - margin) continue;
+
+                var candidate = new PixelRect(nx, ny, width, height);
+                bool overlap = false;
+                foreach (var other in others)
+                {
+                    if (candidate.Intersects(other)) { overlap = true; break; }
+                }
+                if (overlap) continue;
+
+                return new PixelPoint(nx, ny);
+            }
+        }
+
+        int fxMin = screenArea.X + margin;
+        int fxMax = screenArea.X + screenArea.Width - width - margin;
+        int fyMin = screenArea.Y + margin;
+        int fyMax = screenArea.Y + screenArea.Height - height - margin;
+        int fx = Math.Clamp(newNotePos.X + 12, Math.Min(fxMin, fxMax), Math.Max(fxMin, fxMax));
+        int fy = Math.Clamp(newNotePos.Y + 12, Math.Min(fyMin, fyMax), Math.Max(fyMin, fyMax));
+        return new PixelPoint(fx, fy);
+    }
+
+    private static void AnimateMove(MainWindow w, PixelPoint to, int durationMs = 200)
+    {
+        var from = w.Position;
+        if (from == to) return;
+        var sw = Stopwatch.StartNew();
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+        timer.Tick += (_, _) =>
+        {
+            double t = Math.Clamp(sw.Elapsed.TotalMilliseconds / durationMs, 0.0, 1.0);
+            double eased = 1 - Math.Pow(1 - t, 3); // ease-out cubic
+            int x = (int)(from.X + (to.X - from.X) * eased);
+            int y = (int)(from.Y + (to.Y - from.Y) * eased);
+            w.Position = new PixelPoint(x, y);
+            if (t >= 1.0)
+            {
+                w.Position = to;
+                timer.Stop();
+                sw.Stop();
+            }
+        };
+        timer.Start();
     }
 
     private static void FadeIn(MainWindow w, int durationMs = 50)

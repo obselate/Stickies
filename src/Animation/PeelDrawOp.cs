@@ -15,16 +15,18 @@ internal sealed class PeelDrawOp : ICustomDrawOperation
     private readonly Rect _bounds;
     private readonly SKBitmap? _texture;
     private readonly double _t;           // eased, 0..1
-    private readonly double _shadowAlpha; // NEW: 0..1, fades in independently
+    private readonly double _shadowAlpha; // 0..1, fades in independently
     private readonly int _cornerSize;
+    private readonly SKColor _backFaceColor;
 
-    public PeelDrawOp(Rect bounds, SKBitmap? texture, double t, double shadowAlpha, int cornerSize)
+    public PeelDrawOp(Rect bounds, SKBitmap? texture, double t, double shadowAlpha, int cornerSize, SKColor backFaceColor)
     {
         _bounds = bounds;
         _texture = texture;
         _t = t;
         _shadowAlpha = shadowAlpha;
         _cornerSize = cornerSize;
+        _backFaceColor = backFaceColor;
     }
 
     public Rect Bounds => _bounds;
@@ -135,11 +137,23 @@ internal sealed class PeelDrawOp : ICustomDrawOperation
         {
             using var paint = new SKPaint
             {
-                Color = new SKColor(0xC9, 0xB8, 0x53, 0xFF),
+                Color = _backFaceColor,
                 IsAntialias = true
             };
             canvas.DrawPath(path, paint);
         }
+
+        // Edge stroke around the flap silhouette so the lifting paper reads as a
+        // distinct shape against the body color (especially when source and back
+        // face are similar). Drawn under the same matrix so it follows perspective.
+        using var strokePaint = new SKPaint
+        {
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 1.0f,
+            Color = new SKColor(0, 0, 0, 80),
+            IsAntialias = true
+        };
+        canvas.DrawPath(path, strokePaint);
 
         canvas.Restore();
     }

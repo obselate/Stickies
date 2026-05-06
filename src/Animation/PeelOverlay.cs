@@ -20,6 +20,8 @@ internal sealed class PeelOverlay : Control
 
     public Bitmap? Snapshot { get; set; }
 
+    public Avalonia.Media.Color BodyColor { get; set; } = Avalonia.Media.Color.FromRgb(0xFF, 0xF5, 0x9E);
+
     public event Action? Completed;
 
     private readonly Stopwatch _watch = new();
@@ -62,7 +64,18 @@ internal sealed class PeelOverlay : Control
             (elapsedMs - ShadowDelayMs) / ShadowFadeMs,
             0.0, 1.0);
 
-        context.Custom(new PeelDrawOp(bounds, tex, easedT, shadowAlpha, cornerSize: CornerSize));
+        context.Custom(new PeelDrawOp(bounds, tex, easedT, shadowAlpha, cornerSize: CornerSize, backFaceColor: ComputeBackFaceColor()));
+    }
+
+    // Mix body color with white at 60/40 to suggest the underside of paper.
+    // Yields a markedly lighter tint of the source color so the back of the
+    // flap reads as distinct surface, not "barely darker note."
+    private SKColor ComputeBackFaceColor()
+    {
+        byte r = (byte)(BodyColor.R * 0.4 + 255 * 0.6);
+        byte g = (byte)(BodyColor.G * 0.4 + 255 * 0.6);
+        byte b = (byte)(BodyColor.B * 0.4 + 255 * 0.6);
+        return new SKColor(r, g, b, 255);
     }
 
     private void OnTick(object? sender, EventArgs e)
