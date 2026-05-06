@@ -227,6 +227,9 @@ public partial class MainWindow : Window
         if (near._isAnimating) return;
         near._isAnimating = true;
 
+        int srcW = (int)near.Width;
+        int srcH = (int)near.Height;
+
         Bitmap snapshot;
         try
         {
@@ -236,7 +239,7 @@ public partial class MainWindow : Window
         {
             // Snapshot failed (window not yet measured, etc.) — fall back to instant spawn.
             near._isAnimating = false;
-            var rowF = App.Store.Create(near.Position.X, near.Position.Y, 280, 280);
+            var rowF = App.Store.Create(near.Position.X, near.Position.Y, srcW, srcH);
             var wF = new MainWindow(rowF);
             wF.Show();
             return;
@@ -260,7 +263,7 @@ public partial class MainWindow : Window
             // Read near.Position FRESH at completion (in case window was dragged
             // during the animation).
             var pos = near.Position;
-            var row = App.Store.Create(pos.X, pos.Y, 280, 280);
+            var row = App.Store.Create(pos.X, pos.Y, srcW, srcH);
             var w = new MainWindow(row);
             w.Show();
         };
