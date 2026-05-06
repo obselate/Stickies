@@ -31,4 +31,11 @@
     <PackageReference Include="Avalonia.Themes.Simple" Version="11.*" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.*" />
   </ItemGroup>
+
+  <!-- Software-only renderer (see Program.cs). Strip the unused ANGLE/GLES native (-5.4MB). -->
+  <Target Name="StripUnusedNatives" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Filename)' == 'av_libglesv2'" />
+    </ItemGroup>
+  </Target>
 </Project>

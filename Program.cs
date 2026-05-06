@@ -65,5 +65,11 @@ internal static class Program
     public static AppBuilder BuildAvaloniaApp() =>
         AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            .With(new Win32PlatformOptions
+            {
+                // Drop the GPU/ANGLE renderer — sticky notes are static text, software path is plenty.
+                // Lets us exclude av_libglesv2.dll from the publish output (-5.4MB).
+                RenderingMode = new[] { Win32RenderingMode.Software },
+            })
             .LogToTrace();
 }
