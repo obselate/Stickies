@@ -29,6 +29,11 @@ jobs:
             -p:TreatWarningsAsErrors=true `
             -p:WarningsNotAsErrors=IL2104
 
+      - name: Strip native AOT pdbs from publish output
+        shell: pwsh
+        run: |
+          Remove-Item "bin\Release\net9.0\win-x64\publish\*.pdb" -Force -ErrorAction SilentlyContinue
+
       - name: Size budget
         shell: pwsh
         run: |
