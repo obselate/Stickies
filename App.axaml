@@ -3,6 +3,6 @@
              x:Class="Stickies.App"
              RequestedThemeVariant="Light">
     <Application.Styles>
-        <FluentTheme />
+        <SimpleTheme />
     </Application.Styles>
 </Application>

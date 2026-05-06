@@ -6,7 +6,7 @@
         SystemDecorations="None"
         TransparencyLevelHint="Transparent"
         Background="Transparent"
-        FontFamily="fonts:Inter#Inter"
+        FontFamily="Segoe UI"
         Title="Sticky">
 
     <Border Background="#FFF59E"
