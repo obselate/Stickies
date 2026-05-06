@@ -1,0 +1,90 @@
+name: release
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: 'Stickies.csproj'
+
+      - name: Extract version from tag
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -match '^v(\d+\.\d+\.\d+)$') {
+            $version = $Matches[1]
+          } else {
+            $version = "0.0.0-dev"
+          }
+          Write-Host "VERSION=$version"
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Publish AOT (with warning gate, version-stamped)
+        run: |
+          dotnet publish -c Release -r win-x64 --no-restore `
+            -p:Version=$env:VERSION `
+            -p:TreatWarningsAsErrors=true `
+            -p:WarningsNotAsErrors=IL2104
+
+      - name: Size budget
+        shell: pwsh
+        run: |
+          $publishDir = "bin\Release\net9.0\win-x64\publish"
+          $exe = (Get-Item "$publishDir\Stickies.exe").Length
+          $dir = (Get-ChildItem $publishDir -Recurse | Measure-Object Length -Sum).Sum
+          if ($exe -gt 18MB) { throw "Stickies.exe = $exe bytes (> 18MB cap)" }
+          if ($dir -gt 30MB) { throw "publish/ total = $dir bytes (> 30MB cap)" }
+
+      - name: Build MSI
+        run: |
+          dotnet build installer/Stickies.wixproj -c Release `
+            -p:Version=$env:VERSION `
+            -p:HarvestPath=bin\Release\net9.0\win-x64\publish
+
+      - name: Package zip
+        shell: pwsh
+        run: |
+          $zip = "Stickies-$env:VERSION-win-x64.zip"
+          Compress-Archive -Path "bin\Release\net9.0\win-x64\publish\*" -DestinationPath $zip
+          "ZIP_PATH=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "MSI_PATH=installer\bin\Release\Stickies-$env:VERSION.msi" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Upload artifacts (always, for inspection)
+        uses: actions/upload-artifact@v4
+        with:
+          name: stickies-${{ env.VERSION }}
+          path: |
+            ${{ env.ZIP_PATH }}
+            ${{ env.MSI_PATH }}
+          retention-days: 7
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            "$env:ZIP_PATH" `
+            "$env:MSI_PATH" `
+            --title "Stickies $env:VERSION" `
+            --generate-notes
