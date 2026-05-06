@@ -8,7 +8,7 @@ A reliable, lean, no-nonsense sticky-notes app for Windows. Pure local storage, 
 
 - **Tech stack:** Avalonia 11.* + .NET 9 NativeAOT, `Microsoft.Data.Sqlite` 9.*. Adding a NuGet package needs real justification — every package threatens binary size and start time.
 - **Architecture:** Code-behind only. `x:Class` + `InitializeComponent` + event handlers. No view models, no MVVM framework. AOT-friendly; nothing to learn beyond C# + XAML.
-- **Performance targets:** Cold start <300ms to first paint, <60MB RAM with 10 notes, single-file exe <25MB.
+- **Performance is a permanent priority, not a one-time target.** Every change must be measured against current size & startup. Targets: cold start <300ms to first paint, <60MB RAM with 10 notes, exe <25MB. Going under is always preferred. See `Stickies-d0q` for ongoing size/speed work.
 - **Platform:** Windows 10/11 x64 only for v1. Win32 P/Invoke is fine where it earns its keep (global hotkey, etc.).
 - **Privacy:** Zero network calls in the shipped binary, ever.
 - **Build:** `PublishAot=true`, `TrimMode=full`, `InvariantGlobalization=true`. Don't regress to reflection-only paths.
