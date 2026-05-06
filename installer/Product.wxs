@@ -10,6 +10,8 @@
                   AllowSameVersionUpgrades="no"
                   DowngradeErrorMessage="A newer version of Stickies is already installed." />
 
+    <MediaTemplate EmbedCab="yes" />
+
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="ProgramsFolder" Name="Programs">
         <Directory Id="INSTALLFOLDER" Name="Stickies">
