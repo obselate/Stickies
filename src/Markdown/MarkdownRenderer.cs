@@ -44,15 +44,17 @@ internal static class MarkdownRenderer
             {
                 foreach (var inl in WrapHeading(line.Substring(2), 20, bodyColor, onLinkClicked)) yield return inl;
             }
-            // Task list — checkbox stub (real CheckBox in Task 6).
+            // Task list with real interactive CheckBox.
             else if (line.StartsWith("- [ ] ") && line.Length > 6)
             {
-                yield return new Run("☐  ");
+                yield return MakeCheckbox(false, i, onCheckboxToggle);
+                yield return new Run(" ");
                 foreach (var inl in ScanInlines(line.Substring(6), bodyColor, onLinkClicked)) yield return inl;
             }
             else if (line.StartsWith("- [x] ") && line.Length > 6)
             {
-                yield return new Run("☑  ");
+                yield return MakeCheckbox(true, i, onCheckboxToggle);
+                yield return new Run(" ");
                 foreach (var inl in ScanInlines(line.Substring(6), bodyColor, onLinkClicked)) yield return inl;
             }
             // Regular bullet.
@@ -225,6 +227,24 @@ internal static class MarkdownRenderer
         }
         FlushLiteral(sink, literal);
         return sink;
+    }
+
+    private static InlineUIContainer MakeCheckbox(bool isChecked, int lineIndex, Action<int, bool> onToggle)
+    {
+        var cb = new CheckBox
+        {
+            IsChecked = isChecked,
+            Padding = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Center,
+            MinHeight = 0,
+        };
+        cb.IsCheckedChanged += (_, _) => onToggle(lineIndex, cb.IsChecked == true);
+        cb.PointerPressed += (_, e) =>
+        {
+            // Stop the click from bubbling to RenderedScroll and triggering edit-mode swap.
+            e.Handled = true;
+        };
+        return new InlineUIContainer(cb) { BaselineAlignment = BaselineAlignment.Center };
     }
 
     private static InlineUIContainer MakeLink(string label, string url, Action<string> onClicked)

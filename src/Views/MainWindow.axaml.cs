@@ -118,7 +118,24 @@ public partial class MainWindow : Window
 
     private void OnCheckboxToggle(int lineIndex, bool isChecked)
     {
-        // Implemented in Task 6.
+        var src = NoteText.Text ?? string.Empty;
+        var lines = src.Split('\n');
+        if (lineIndex < 0 || lineIndex >= lines.Length) return;
+
+        // Strip trailing \r so checks against fixed offsets work on either line ending.
+        var line = lines[lineIndex].TrimEnd('\r');
+        // The block prefix is "- [x] " or "- [ ] " — toggle the char at offset 3.
+        if (line.Length < 5 || line[0] != '-' || line[1] != ' ' || line[2] != '[' || line[4] != ']')
+            return;
+        char target = isChecked ? 'x' : ' ';
+        if (line[3] == target) return; // no-op (e.g., IsCheckedChanged firing during render)
+
+        var chars = line.ToCharArray();
+        chars[3] = target;
+        lines[lineIndex] = new string(chars);
+
+        NoteText.Text = string.Join('\n', lines);
+        // OnTextChanged kicks the debounced save timer automatically.
     }
 
     private void OnLinkClicked(string url)
