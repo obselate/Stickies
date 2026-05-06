@@ -7,7 +7,6 @@
         TransparencyLevelHint="Transparent"
         Background="Transparent"
         FontFamily="Segoe UI"
-        Topmost="True"
         Title="Sticky">
 
     <Border Background="#FFF59E"
@@ -16,6 +15,7 @@
         <Border.ContextMenu>
             <ContextMenu>
                 <MenuItem Header="New note" InputGesture="Ctrl+N" Click="OnNewClick"/>
+                <MenuItem Name="PinMenuItem" Click="OnPinClick"/>
                 <Separator/>
                 <MenuItem Header="Delete" InputGesture="Ctrl+D" Click="OnDeleteClick"/>
             </ContextMenu>

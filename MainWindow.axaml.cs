@@ -12,6 +12,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _saveTextTimer;
     private readonly DispatcherTimer _saveBoundsTimer;
     private bool _ready;
+    private bool _pinned;
 
     public long NoteId => _noteId;
 
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
             Position = new PixelPoint(x, y);
 
         NoteText.Text = row.Text;
+        ApplyPinned(row.Pinned);
 
         _saveTextTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         _saveTextTimer.Tick += OnSaveTextTick;
@@ -126,6 +128,19 @@ public partial class MainWindow : Window
     private void OnNewClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => SpawnNew(this);
 
     private void OnDeleteClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => DeleteNote();
+
+    private void OnPinClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        ApplyPinned(!_pinned);
+        App.Store.UpdatePinned(_noteId, _pinned);
+    }
+
+    private void ApplyPinned(bool pinned)
+    {
+        _pinned = pinned;
+        Topmost = pinned;
+        PinMenuItem.Header = pinned ? "Unpin from top" : "Pin on top";
+    }
 
     private void DeleteNote()
     {

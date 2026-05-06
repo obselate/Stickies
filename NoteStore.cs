@@ -52,6 +52,7 @@ public sealed class NoteStore
         AddColumnIfMissing(c, "width", "INTEGER NOT NULL DEFAULT 280");
         AddColumnIfMissing(c, "height", "INTEGER NOT NULL DEFAULT 280");
         AddColumnIfMissing(c, "deleted_at", "INTEGER");
+        AddColumnIfMissing(c, "pinned", "INTEGER NOT NULL DEFAULT 1");
     }
 
     private static void AddColumnIfMissing(SqliteConnection c, string col, string type)
@@ -67,25 +68,27 @@ public sealed class NoteStore
         alter.ExecuteNonQuery();
     }
 
-    public sealed record NoteRow(long Id, string Text, int? X, int? Y, int Width, int Height);
+    public sealed record NoteRow(long Id, string Text, int? X, int? Y, int Width, int Height, bool Pinned);
+
+    private const string SelectColumns = "id, text, x, y, width, height, pinned";
+
+    private static NoteRow ReadRow(SqliteDataReader r) => new(
+        r.GetInt64(0),
+        r.GetString(1),
+        r.IsDBNull(2) ? null : r.GetInt32(2),
+        r.IsDBNull(3) ? null : r.GetInt32(3),
+        r.GetInt32(4),
+        r.GetInt32(5),
+        r.GetInt32(6) != 0);
 
     public List<NoteRow> LoadActive()
     {
         var list = new List<NoteRow>();
         using var c = Open();
         using var cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT id, text, x, y, width, height FROM notes WHERE deleted_at IS NULL ORDER BY id;";
+        cmd.CommandText = $"SELECT {SelectColumns} FROM notes WHERE deleted_at IS NULL ORDER BY id;";
         using var r = cmd.ExecuteReader();
-        while (r.Read())
-        {
-            list.Add(new NoteRow(
-                r.GetInt64(0),
-                r.GetString(1),
-                r.IsDBNull(2) ? null : r.GetInt32(2),
-                r.IsDBNull(3) ? null : r.GetInt32(3),
-                r.GetInt32(4),
-                r.GetInt32(5)));
-        }
+        while (r.Read()) list.Add(ReadRow(r));
         return list;
     }
 
@@ -93,17 +96,10 @@ public sealed class NoteStore
     {
         using var c = Open();
         using var cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT id, text, x, y, width, height FROM notes WHERE id=@id AND deleted_at IS NULL;";
+        cmd.CommandText = $"SELECT {SelectColumns} FROM notes WHERE id=@id AND deleted_at IS NULL;";
         cmd.Parameters.Add("@id", SqliteType.Integer).Value = id;
         using var r = cmd.ExecuteReader();
-        if (!r.Read()) return null;
-        return new NoteRow(
-            r.GetInt64(0),
-            r.GetString(1),
-            r.IsDBNull(2) ? null : r.GetInt32(2),
-            r.IsDBNull(3) ? null : r.GetInt32(3),
-            r.GetInt32(4),
-            r.GetInt32(5));
+        return r.Read() ? ReadRow(r) : null;
     }
 
     public NoteRow Create(int? x, int? y, int width, int height)
@@ -121,7 +117,18 @@ public sealed class NoteStore
         cmd.Parameters.Add("@h", SqliteType.Integer).Value = height;
         cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var id = Convert.ToInt64(cmd.ExecuteScalar() ?? 0L);
-        return new NoteRow(id, "", x, y, width, height);
+        return new NoteRow(id, "", x, y, width, height, true);
+    }
+
+    public void UpdatePinned(long id, bool pinned)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE notes SET pinned=@p, updated_at=@ts WHERE id=@id;";
+        cmd.Parameters.Add("@p", SqliteType.Integer).Value = pinned ? 1 : 0;
+        cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        cmd.Parameters.Add("@id", SqliteType.Integer).Value = id;
+        cmd.ExecuteNonQuery();
     }
 
     public void UpdateText(long id, string text)
