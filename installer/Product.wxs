@@ -31,6 +31,10 @@
       </Component>
     </StandardDirectory>
 
+    <ComponentGroup Id="HarvestedFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.HarvestPath)\**" />
+    </ComponentGroup>
+
     <Feature Id="Main">
       <ComponentGroupRef Id="HarvestedFiles" />
       <ComponentRef Id="StartMenuShortcut" />
