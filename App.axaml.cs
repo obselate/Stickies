@@ -16,6 +16,8 @@ public partial class App : Application
     public static NoteStore Store { get; } = new();
     public static string StartupVerb { get; set; } = "SHOW";
 
+    private HotkeyHost? _hotkeyHost;
+
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
@@ -28,6 +30,9 @@ public partial class App : Application
 
             if (StartupVerb == "NEW")
                 MainWindow.SpawnNew(null);
+
+            _hotkeyHost = new HotkeyHost();
+            _hotkeyHost.Show();
 
             StartIpcServer(desktop);
         }

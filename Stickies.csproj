@@ -6,6 +6,7 @@
     <RootNamespace>Stickies</RootNamespace>
     <AssemblyName>Stickies</AssemblyName>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
