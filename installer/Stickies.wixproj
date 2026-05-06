@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>Package</OutputType>
     <OutputName>Stickies-$(Version)</OutputName>
-    <SuppressIces>ICE61</SuppressIces>
+    <SuppressIces>ICE38;ICE61;ICE91</SuppressIces>
     <DefineConstants>Version=$(Version);HarvestPath=$(HarvestPath)</DefineConstants>
   </PropertyGroup>
 </Project>
