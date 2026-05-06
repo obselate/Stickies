@@ -214,10 +214,21 @@ public partial class MainWindow : Window
 
     public static void SpawnNew(MainWindow? near)
     {
-        // Null-source path: no peel, just fade in at the DB-default position.
+        // Null-source path: no peel. If any existing note is visible, place the
+        // new note at a non-overlapping spot near it. With no reference, fall
+        // through to the DB-default position (first-run; nothing to overlap).
         if (near is null)
         {
-            var rowN = App.Store.Create(null, null, 280, 280);
+            const int W = 280, H = 280;
+            var reference = FindReferenceWindow();
+            int? nx = null, ny = null;
+            if (reference is not null)
+            {
+                var pos = FindAvailableSpace(null, reference.Position, W, H);
+                nx = pos.X;
+                ny = pos.Y;
+            }
+            var rowN = App.Store.Create(nx, ny, W, H);
             var wN = new MainWindow(rowN);
             FadeIn(wN);
             wN.Show();
@@ -274,7 +285,15 @@ public partial class MainWindow : Window
     // new sticky fades in; the old slides via AnimateMove.
     private static void SpawnReplacement(MainWindow source, int width, int height)
     {
-        var newNotePos = source.Position;
+        // Normally the new note takes the source's exact position. If the source
+        // is itself stacked under a twin (legacy notes from before non-overlap
+        // placement existed), find a free spot for the new note rather than
+        // landing it on top of the twin.
+        var preferred = source.Position;
+        var newNotePos = OverlapsAnyOther(source, preferred, width, height)
+            ? FindAvailableSpace(source, preferred, width, height)
+            : preferred;
+
         var oldNewPos = FindAvailableSpace(source, newNotePos, width, height);
 
         AnimateMove(source, oldNewPos);
@@ -286,19 +305,56 @@ public partial class MainWindow : Window
         FadeIn(fresh, durationMs: 200);
     }
 
-    // Spirals out from the source's current position in cardinal-then-diagonal
-    // order at increasing distances. Skips positions that overlap any other
-    // open note or fall within margin of a screen edge. Best-effort fallback
-    // when the screen is too crowded: small offset clamped to screen.
+    private static bool OverlapsAnyOther(MainWindow source, PixelPoint pos, int width, int height)
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return false;
+        // pos is physical (PixelPoint); convert width/height (DIPs) using source's scaling.
+        double srcScale = source.RenderScaling > 0 ? source.RenderScaling : 1.0;
+        var rect = new PixelRect(pos, new PixelSize((int)(width * srcScale), (int)(height * srcScale)));
+        foreach (var w in desktop.Windows)
+        {
+            if (w is MainWindow mw && mw != source && mw.IsVisible)
+            {
+                if (rect.Intersects(PhysicalRect(mw))) return true;
+            }
+        }
+        return false;
+    }
+
+    private static PixelRect PhysicalRect(MainWindow mw)
+    {
+        double s = mw.RenderScaling > 0 ? mw.RenderScaling : 1.0;
+        return new PixelRect(mw.Position, new PixelSize((int)(mw.Width * s), (int)(mw.Height * s)));
+    }
+
+    // First visible MainWindow (any). Used as a placement anchor when a new
+    // note is being spawned without a peel source.
+    private static MainWindow? FindReferenceWindow()
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return null;
+        foreach (var w in desktop.Windows)
+            if (w is MainWindow mw && mw.IsVisible) return mw;
+        return null;
+    }
+
+    // Spirals out from `origin` in cardinal-then-diagonal order at increasing
+    // distances. Skips positions that overlap any open note (other than `source`,
+    // which is moving away) or fall within margin of a screen edge. The origin
+    // itself is treated as occupied. Best-effort fallback when crowded: small
+    // offset clamped to screen.
     private static PixelPoint FindAvailableSpace(
-        MainWindow source,
-        PixelPoint newNotePos,
+        MainWindow? source,
+        PixelPoint origin,
         int width,
         int height)
     {
-        const int margin = 40;
-        const int gap = 12;
+        // Logical (DIP) constants converted to physical via screenAnchor.RenderScaling.
+        const int marginDip = 40;
+        const int gapDip = 12;
 
+        MainWindow? screenAnchor = source;
         var others = new List<PixelRect>();
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -306,14 +362,21 @@ public partial class MainWindow : Window
             {
                 if (w is MainWindow mw && mw != source && mw.IsVisible)
                 {
-                    others.Add(new PixelRect(mw.Position, new PixelSize((int)mw.Width, (int)mw.Height)));
+                    others.Add(PhysicalRect(mw));
+                    screenAnchor ??= mw;
                 }
             }
         }
-        // The new note will occupy the source's CURRENT position — treat as occupied.
-        others.Add(new PixelRect(newNotePos, new PixelSize(width, height)));
 
-        var screen = source.Screens?.ScreenFromWindow(source);
+        double scale = screenAnchor?.RenderScaling > 0 ? screenAnchor.RenderScaling : 1.0;
+        int wPx = (int)(width * scale);
+        int hPx = (int)(height * scale);
+        int marginPx = (int)(marginDip * scale);
+        int gapPx = (int)(gapDip * scale);
+
+        others.Add(new PixelRect(origin, new PixelSize(wPx, hPx)));
+
+        var screen = screenAnchor?.Screens?.ScreenFromWindow(screenAnchor);
         var screenArea = screen?.WorkingArea ?? new PixelRect(0, 0, 1920, 1080);
 
         var directions = new (int dx, int dy)[]
@@ -326,15 +389,15 @@ public partial class MainWindow : Window
         {
             foreach (var (dx, dy) in directions)
             {
-                int nx = newNotePos.X + dx * (width + gap) * dist;
-                int ny = newNotePos.Y + dy * (height + gap) * dist;
+                int nx = origin.X + dx * (wPx + gapPx) * dist;
+                int ny = origin.Y + dy * (hPx + gapPx) * dist;
 
-                if (nx < screenArea.X + margin) continue;
-                if (ny < screenArea.Y + margin) continue;
-                if (nx + width > screenArea.X + screenArea.Width - margin) continue;
-                if (ny + height > screenArea.Y + screenArea.Height - margin) continue;
+                if (nx < screenArea.X + marginPx) continue;
+                if (ny < screenArea.Y + marginPx) continue;
+                if (nx + wPx > screenArea.X + screenArea.Width - marginPx) continue;
+                if (ny + hPx > screenArea.Y + screenArea.Height - marginPx) continue;
 
-                var candidate = new PixelRect(nx, ny, width, height);
+                var candidate = new PixelRect(nx, ny, wPx, hPx);
                 bool overlap = false;
                 foreach (var other in others)
                 {
@@ -346,12 +409,12 @@ public partial class MainWindow : Window
             }
         }
 
-        int fxMin = screenArea.X + margin;
-        int fxMax = screenArea.X + screenArea.Width - width - margin;
-        int fyMin = screenArea.Y + margin;
-        int fyMax = screenArea.Y + screenArea.Height - height - margin;
-        int fx = Math.Clamp(newNotePos.X + 12, Math.Min(fxMin, fxMax), Math.Max(fxMin, fxMax));
-        int fy = Math.Clamp(newNotePos.Y + 12, Math.Min(fyMin, fyMax), Math.Max(fyMin, fyMax));
+        int fxMin = screenArea.X + marginPx;
+        int fxMax = screenArea.X + screenArea.Width - wPx - marginPx;
+        int fyMin = screenArea.Y + marginPx;
+        int fyMax = screenArea.Y + screenArea.Height - hPx - marginPx;
+        int fx = Math.Clamp(origin.X + gapPx, Math.Min(fxMin, fxMax), Math.Max(fxMin, fxMax));
+        int fy = Math.Clamp(origin.Y + gapPx, Math.Min(fyMin, fyMax), Math.Max(fyMin, fyMax));
         return new PixelPoint(fx, fy);
     }
 
