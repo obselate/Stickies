@@ -9,6 +9,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Stickies.Models;
+using Stickies.Services;
 
 namespace Stickies;
 

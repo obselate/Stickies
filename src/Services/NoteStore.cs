@@ -4,7 +4,7 @@ using System.IO;
 using Microsoft.Data.Sqlite;
 using Stickies.Models;
 
-namespace Stickies;
+namespace Stickies.Services;
 
 public sealed class NoteStore
 {

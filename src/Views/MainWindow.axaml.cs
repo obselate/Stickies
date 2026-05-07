@@ -12,6 +12,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using Stickies.Models;
+using Stickies.Services;
 
 namespace Stickies;
 
