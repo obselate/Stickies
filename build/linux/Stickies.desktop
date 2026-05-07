@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Stickies
+Comment=Sticky notes for the desktop
+Exec=Stickies
+Icon=Stickies
+Categories=Utility;Office;
+Terminal=false
+StartupWMClass=Stickies

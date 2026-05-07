@@ -24,6 +24,10 @@ internal static class HotkeyHost
             {
                 return new Stickies.Mac.HotkeyHost();
             }
+            if (OperatingSystem.IsLinux())
+            {
+                return new Stickies.Linux.HotkeyHost();
+            }
         }
         catch
         {
