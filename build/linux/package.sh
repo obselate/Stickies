@@ -40,6 +40,18 @@ mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 cp -r "$PUBLISH/." "$APPDIR/usr/bin/"
 chmod +x "$APPDIR/usr/bin/Stickies"
 
+# Custom AppRun: SQLitePCLRaw (libe_sqlite3.so), SkiaSharp, HarfBuzz natives all
+# sit next to the binary in usr/bin/. linuxdeploy's default AppRun only puts
+# usr/lib on LD_LIBRARY_PATH, so dlopen("e_sqlite3") fails at startup. Override
+# AppRun to add usr/bin so the .NET P/Invoke loader finds the .so files.
+cat > "$APPDIR/AppRun" <<'APPRUN'
+#!/bin/sh
+HERE="$(dirname "$(readlink -f "$0")")"
+export LD_LIBRARY_PATH="$HERE/usr/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec "$HERE/usr/bin/Stickies" "$@"
+APPRUN
+chmod +x "$APPDIR/AppRun"
+
 # 2. Resize 1024² master to 256² for the AppImage icon.
 ICON256="$APPDIR/usr/share/icons/hicolor/256x256/apps/Stickies.png"
 convert "$SRC" -resize 256x256 "$ICON256"

@@ -12,6 +12,10 @@
 
     <MediaTemplate EmbedCab="yes" />
 
+    <!-- Add/Remove Programs icon (also used by Start Menu shortcut). -->
+    <Icon Id="StickiesIcon" SourceFile="..\Assets\stickies.ico" />
+    <Property Id="ARPPRODUCTICON" Value="StickiesIcon" />
+
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="ProgramsFolder" Name="Programs">
         <Directory Id="INSTALLFOLDER" Name="Stickies">
@@ -34,7 +38,8 @@
         <Shortcut Id="StickiesShortcut"
                   Name="Stickies"
                   Target="[INSTALLFOLDER]Stickies.exe"
-                  WorkingDirectory="INSTALLFOLDER" />
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="StickiesIcon" />
         <RegistryValue Root="HKCU"
                        Key="Software\obselate\Stickies"
                        Name="installed"
