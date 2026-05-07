@@ -261,6 +261,11 @@ public partial class MainWindow : Window
 
     private void OnNewClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => NoteSpawner.SpawnNew(this);
 
+    // TODO(bpy): wire SettingsWindow.ShowAsync(this) from compact menu here.
+
+    private async void OnShowBinClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        => await BinWindow.ShowAsync(this);
+
     private void OnDeleteClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => DeleteNote();
 
     private void OnPinClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

@@ -34,6 +34,12 @@ public partial class App : Application
             // auto-purge) can read Settings.Current.PurgeAfterDays immediately.
             Settings.Load();
 
+            if (Settings.Current.PurgeAfterDays > 0)
+            {
+                var cutoff = DateTimeOffset.UtcNow.AddDays(-Settings.Current.PurgeAfterDays).ToUnixTimeSeconds();
+                Store.PurgeOlderThan(cutoff);
+            }
+
             OpenActiveNotes(desktop);
 
             if (StartupVerb == "NEW")
@@ -188,5 +194,12 @@ public partial class App : Application
         var fresh = new MainWindow(row);
         fresh.Show();
         Visibility.NoteSurfaced();
+    }
+
+    /// <summary>Public entry point for BinWindow restore: open or surface a note by id.</summary>
+    public static void OpenById(long id)
+    {
+        if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            OpenById(desktop, id);
     }
 }

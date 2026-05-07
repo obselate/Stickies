@@ -37,6 +37,8 @@
                 <Separator/>
                 <MenuItem Name="DeleteMenuItem" Header="Delete" Click="OnDeleteClick"/>
                 <MenuItem Name="LockMenuItem" Header="Lock in place" Click="OnLockToggleClick"/>
+                <!-- TODO(bpy): move bin entry to compact menu -->
+                <MenuItem Name="BinMenuItem" Header="Show recycle bin" Click="OnShowBinClick"/>
             </ContextMenu>
         </Border.ContextMenu>
         <Grid x:Name="BodyGrid" RowDefinitions="22,*">

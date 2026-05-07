@@ -190,4 +190,60 @@ public sealed class NoteStore
         cmd.Parameters.Add("@id", SqliteType.Integer).Value = id;
         cmd.ExecuteNonQuery();
     }
+
+    // ── Recycle-bin methods ───────────────────────────────────────────────────
+    // Separate reader from SelectColumns/ReadRow so LoadActive/LoadById are untouched.
+
+    private const string DeletedColumns = "id, text, x, y, width, height, pinned, color, locked, deleted_at";
+
+    private static Note ReadDeletedRow(SqliteDataReader r) => new(
+        r.GetInt64(0),
+        r.GetString(1),
+        r.IsDBNull(2) ? null : r.GetInt32(2),
+        r.IsDBNull(3) ? null : r.GetInt32(3),
+        r.GetInt32(4),
+        r.GetInt32(5),
+        r.GetInt32(6) != 0,
+        r.GetString(7),
+        r.GetInt32(8) != 0,
+        r.IsDBNull(9) ? null : DateTimeOffset.FromUnixTimeSeconds(r.GetInt64(9)));
+
+    public List<Note> LoadDeleted()
+    {
+        var list = new List<Note>();
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = $"SELECT {DeletedColumns} FROM notes WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC;";
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) list.Add(ReadDeletedRow(r));
+        return list;
+    }
+
+    public void Restore(long id)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE notes SET deleted_at=NULL, updated_at=@ts WHERE id=@id;";
+        cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        cmd.Parameters.Add("@id", SqliteType.Integer).Value = id;
+        cmd.ExecuteNonQuery();
+    }
+
+    public void HardDelete(long id)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "DELETE FROM notes WHERE id=@id;";
+        cmd.Parameters.Add("@id", SqliteType.Integer).Value = id;
+        cmd.ExecuteNonQuery();
+    }
+
+    public int PurgeOlderThan(long cutoffUnixSec)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "DELETE FROM notes WHERE deleted_at IS NOT NULL AND deleted_at < @cutoff;";
+        cmd.Parameters.Add("@cutoff", SqliteType.Integer).Value = cutoffUnixSec;
+        return cmd.ExecuteNonQuery();
+    }
 }

@@ -1,0 +1,65 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Stickies.Views.BinWindow"
+        Width="360" Height="400"
+        MinWidth="280" MinHeight="200"
+        SystemDecorations="None"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        ShowInTaskbar="False"
+        Background="#FFFFFF"
+        FontFamily="Segoe UI, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif"
+        Title="Recycle Bin">
+
+  <Border BorderBrush="#888" BorderThickness="1">
+    <Grid RowDefinitions="30,*">
+
+      <!-- Custom title bar / drag handle -->
+      <Border Grid.Row="0"
+              Background="#E8E8E8"
+              PointerPressed="OnTitleBarPressed">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0"
+                     Text="Recycle Bin"
+                     VerticalAlignment="Center"
+                     Margin="10,0,0,0"
+                     FontSize="13"
+                     FontWeight="SemiBold"
+                     Foreground="#333"
+                     IsHitTestVisible="False"/>
+          <Button Grid.Column="1"
+                  Content="✕"
+                  Width="30" Height="30"
+                  FontSize="12"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  Foreground="#555"
+                  Click="OnCloseClick"
+                  VerticalAlignment="Center"/>
+        </Grid>
+      </Border>
+
+      <!-- Body -->
+      <Grid Grid.Row="1" RowDefinitions="*">
+
+        <!-- Empty state -->
+        <TextBlock Name="EmptyLabel"
+                   Text="Recycle bin is empty"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   FontSize="13"
+                   Foreground="#888"
+                   IsVisible="False"/>
+
+        <!-- Scrollable rows -->
+        <ScrollViewer Name="BinScroll"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto"
+                      Padding="0">
+          <StackPanel Name="BinPanel" Spacing="0"/>
+        </ScrollViewer>
+
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

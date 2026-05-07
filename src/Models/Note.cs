@@ -1,3 +1,5 @@
+using System;
+
 namespace Stickies.Models;
 
 public sealed record Note(
@@ -9,4 +11,5 @@ public sealed record Note(
     int Height,
     bool Pinned,
     string Color,
-    bool Locked);
+    bool Locked,
+    DateTimeOffset? DeletedAt = null);
