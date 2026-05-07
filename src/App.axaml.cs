@@ -31,7 +31,7 @@ public partial class App : Application
             OpenActiveNotes(desktop);
 
             if (StartupVerb == "NEW")
-                MainWindow.SpawnNew(null);
+                NoteSpawner.SpawnNew(null);
 
             _hotkeyHost = new HotkeyHost();
             _hotkeyHost.Show();
@@ -112,7 +112,7 @@ public partial class App : Application
     {
         if (verb == "NEW")
         {
-            MainWindow.SpawnNew(FrontmostNote(desktop));
+            NoteSpawner.SpawnNew(FrontmostNote(desktop));
             return;
         }
         if (verb == "SHOW")

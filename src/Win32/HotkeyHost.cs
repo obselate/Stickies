@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using Stickies.Services;
 
 namespace Stickies;
 
@@ -60,7 +61,7 @@ internal sealed partial class HotkeyHost : Window
         if (msg == WmHotkey && wParam.ToInt32() == HotkeyId)
         {
             handled = true;
-            Dispatcher.UIThread.Post(() => MainWindow.SpawnNew(null));
+            Dispatcher.UIThread.Post(() => NoteSpawner.SpawnNew(null));
         }
         return IntPtr.Zero;
     }

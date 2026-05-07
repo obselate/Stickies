@@ -24,8 +24,8 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _saveBoundsTimer;
     private bool _ready;
     private bool _pinned;
-    private bool _isAnimating;
-    private string _color = "#FFF59E";
+    internal bool _isAnimating;
+    internal string _color = "#FFF59E";
 
     public long NoteId => _noteId;
 
@@ -210,7 +210,7 @@ public partial class MainWindow : Window
         if (e.KeyModifiers != KeyModifiers.Control) return;
         if (e.Key == Key.N)
         {
-            SpawnNew(this);
+            NoteSpawner.SpawnNew(this);
             e.Handled = true;
         }
         else if (e.Key == Key.D)
@@ -220,7 +220,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnNewClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => SpawnNew(this);
+    private void OnNewClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => NoteSpawner.SpawnNew(this);
 
     private void OnDeleteClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => DeleteNote();
 
@@ -297,141 +297,4 @@ public partial class MainWindow : Window
         Close();
     }
 
-    public static void SpawnNew(MainWindow? near)
-    {
-        // Null-source path: no peel. If any existing note is visible, place the
-        // new note at a non-overlapping spot near it. With no reference, fall
-        // through to the DB-default position (first-run; nothing to overlap).
-        if (near is null)
-        {
-            const int W = 280, H = 280;
-            var reference = FindReferenceWindow();
-            int? nx = null, ny = null;
-            if (reference is not null)
-            {
-                var pos = PlacementService.FindAvailableSpace(null, reference.Position, W, H);
-                nx = pos.X;
-                ny = pos.Y;
-            }
-            var rowN = App.Store.Create(nx, ny, W, H);
-            var wN = new MainWindow(rowN);
-            Tween.FadeIn(wN);
-            wN.Show();
-            return;
-        }
-
-        // Source-driven path: peel from `near`, then spawn B at near.Position
-        // (no cascade offset — see spec decision #2).
-        if (near._isAnimating) return;
-        near._isAnimating = true;
-
-        int srcW = (int)near.Width;
-        int srcH = (int)near.Height;
-        Color bodyColor;
-        try { bodyColor = Color.Parse(near._color); }
-        catch { bodyColor = Color.FromRgb(0xFF, 0xF5, 0x9E); }
-
-        Bitmap snapshot;
-        try
-        {
-            snapshot = CaptureCornerSnapshot(near);
-        }
-        catch
-        {
-            // Snapshot failed (window not yet measured, etc.) — fall back to instant
-            // replacement using the same relocate-source/new-takes-original-spot model.
-            near._isAnimating = false;
-            SpawnReplacement(near, srcW, srcH);
-            return;
-        }
-
-        var overlay = new PeelOverlay { Snapshot = snapshot, BodyColor = bodyColor };
-        Grid.SetRow(overlay, 0);
-        Grid.SetRowSpan(overlay, 2);
-        overlay.HorizontalAlignment = HorizontalAlignment.Left;
-        overlay.VerticalAlignment = VerticalAlignment.Bottom;
-        overlay.Width = PeelOverlay.CornerSize;
-        overlay.Height = PeelOverlay.CornerSize;
-        overlay.IsHitTestVisible = false;
-
-        overlay.Completed += () =>
-        {
-            near.BodyGrid.Children.Remove(overlay);
-            near._isAnimating = false;
-            SpawnReplacement(near, srcW, srcH);
-        };
-
-        near.BodyGrid.Children.Add(overlay);
-        overlay.Start();
-    }
-
-    // After the peel: relocate the source ("old") sticky to nearby available
-    // space and create the new sticky at the source's original position. The
-    // new sticky fades in; the old slides via AnimateMove.
-    private static void SpawnReplacement(MainWindow source, int width, int height)
-    {
-        // Normally the new note takes the source's exact position. If the source
-        // is itself stacked under a twin (legacy notes from before non-overlap
-        // placement existed), find a free spot for the new note rather than
-        // landing it on top of the twin.
-        var preferred = source.Position;
-        var newNotePos = PlacementService.OverlapsAnyOther(source, preferred, width, height)
-            ? PlacementService.FindAvailableSpace(source, preferred, width, height)
-            : preferred;
-
-        var oldNewPos = PlacementService.FindAvailableSpace(source, newNotePos, width, height);
-
-        Tween.AnimateMove(source, oldNewPos);
-
-        var row = App.Store.Create(newNotePos.X, newNotePos.Y, width, height);
-        var fresh = new MainWindow(row);
-        fresh.Opacity = 0;
-        fresh.Show();
-        Tween.FadeIn(fresh, durationMs: 200);
-    }
-
-    // First visible MainWindow (any). Used as a placement anchor when a new
-    // note is being spawned without a peel source.
-    private static MainWindow? FindReferenceWindow()
-    {
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
-            return null;
-        foreach (var w in desktop.Windows)
-            if (w is MainWindow mw && mw.IsVisible) return mw;
-        return null;
-    }
-
-    internal static Bitmap CaptureCornerSnapshot(MainWindow source)
-    {
-        // Capture the entire BodyBorder, then crop to BL 110x110.
-        var body = source.BodyBorder;
-        var bw = (int)Math.Ceiling(body.Bounds.Width);
-        var bh = (int)Math.Ceiling(body.Bounds.Height);
-        if (bw <= 0 || bh <= 0)
-            return new RenderTargetBitmap(new PixelSize(PeelOverlay.CornerSize, PeelOverlay.CornerSize));
-
-        var full = new RenderTargetBitmap(new PixelSize(bw, bh));
-        full.Render(body);
-
-        // Crop to the bottom-left CornerSize x CornerSize.
-        int cs = PeelOverlay.CornerSize;
-        int cropW = Math.Min(cs, bw);
-        int cropH = Math.Min(cs, bh);
-        int srcX = 0;                  // BL x = 0
-        int srcY = bh - cropH;         // BL y = bottom of body
-
-        var cropped = new RenderTargetBitmap(new PixelSize(cs, cs));
-        using (var ctx = cropped.CreateDrawingContext())
-        {
-            // Fill with transparent (RenderTargetBitmap default is transparent).
-            // Draw the cropped region of `full` into the BL of `cropped`.
-            int dstY = cs - cropH;     // anchor crop at BL of overlay region
-            ctx.DrawImage(
-                full,
-                new Rect(srcX, srcY, cropW, cropH),
-                new Rect(0, dstY, cropW, cropH));
-        }
-        full.Dispose();
-        return cropped;
-    }
 }
