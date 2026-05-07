@@ -15,7 +15,6 @@ using Stickies.Animation;
 using Stickies.Markdown;
 using Stickies.Models;
 using Stickies.Services;
-using Stickies.Win32;
 
 namespace Stickies.Views;
 
@@ -248,18 +247,17 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void OnCustomColorPressed(object? sender, PointerPressedEventArgs e)
+    private async void OnCustomColorPressed(object? sender, PointerPressedEventArgs e)
     {
         e.Handled = true;
-        var handle = TryGetPlatformHandle();
-        var owner = handle?.Handle ?? IntPtr.Zero;
-        var current = Color.Parse(_color);
-        var picked = ColorDialog.Show(owner, current);
+        NoteMenu.Close();
+        var initial = Color.Parse(_color);
+        var picked = await HsvColorPicker.ShowAsync(this, initial,
+            live => ApplyColor($"#{live.R:X2}{live.G:X2}{live.B:X2}"));
         if (picked is null) return;
         var hex = $"#{picked.Value.R:X2}{picked.Value.G:X2}{picked.Value.B:X2}";
         ApplyColor(hex);
         App.Store.UpdateColor(_noteId, hex);
-        NoteMenu.Close();
     }
 
     private void ApplyColor(string hex)
