@@ -55,11 +55,7 @@ public partial class MainWindow : Window
 
         PositionChanged += (_, _) => { if (_ready) Restart(_saveBoundsTimer); };
 
-        Opened += (_, _) =>
-        {
-            _ready = true;
-            OnSaveBoundsTick(null, EventArgs.Empty);
-        };
+        Opened += OnWindowOpened;
         Closing += (_, _) => FlushPendingWrites();
         KeyDown += OnKeyDown;
 
@@ -88,6 +84,23 @@ public partial class MainWindow : Window
             NoteText.IsVisible = false;
             RenderedScroll.IsVisible = true;
         }
+    }
+
+    private void OnWindowOpened(object? sender, EventArgs e)
+    {
+        _ready = true;
+        OnSaveBoundsTick(null, EventArgs.Empty);
+
+        Stickies.Services.Visibility.NoteSurfaced();
+
+        // Only auto-focus if the textbox is the visible surface (i.e. the note is
+        // empty). For existing notes loaded at startup, the rendered view is the
+        // visible surface — preserve "open the app, see your notes, click to edit".
+        if (!NoteText.IsVisible) return;
+
+        Dispatcher.UIThread.Post(
+            () => NoteText.Focus(),
+            DispatcherPriority.Background);
     }
 
     private void OnNoteFocusGot(object? sender, GotFocusEventArgs e)
