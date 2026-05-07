@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using Stickies.Models;
 
 namespace Stickies;
 
@@ -28,7 +29,7 @@ public partial class MainWindow : Window
 
     public MainWindow() : this(App.Store.Create(null, null, 280, 280)) { }
 
-    public MainWindow(NoteStore.NoteRow row)
+    public MainWindow(Note row)
     {
         _noteId = row.Id;
         InitializeComponent();

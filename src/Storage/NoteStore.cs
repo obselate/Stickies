@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.Data.Sqlite;
+using Stickies.Models;
 
 namespace Stickies;
 
@@ -69,11 +70,9 @@ public sealed class NoteStore
         alter.ExecuteNonQuery();
     }
 
-    public sealed record NoteRow(long Id, string Text, int? X, int? Y, int Width, int Height, bool Pinned, string Color);
-
     private const string SelectColumns = "id, text, x, y, width, height, pinned, color";
 
-    private static NoteRow ReadRow(SqliteDataReader r) => new(
+    private static Note ReadRow(SqliteDataReader r) => new(
         r.GetInt64(0),
         r.GetString(1),
         r.IsDBNull(2) ? null : r.GetInt32(2),
@@ -83,9 +82,9 @@ public sealed class NoteStore
         r.GetInt32(6) != 0,
         r.GetString(7));
 
-    public List<NoteRow> LoadActive()
+    public List<Note> LoadActive()
     {
-        var list = new List<NoteRow>();
+        var list = new List<Note>();
         using var c = Open();
         using var cmd = c.CreateCommand();
         cmd.CommandText = $"SELECT {SelectColumns} FROM notes WHERE deleted_at IS NULL ORDER BY id;";
@@ -94,7 +93,7 @@ public sealed class NoteStore
         return list;
     }
 
-    public NoteRow? LoadById(long id)
+    public Note? LoadById(long id)
     {
         using var c = Open();
         using var cmd = c.CreateCommand();
@@ -104,7 +103,7 @@ public sealed class NoteStore
         return r.Read() ? ReadRow(r) : null;
     }
 
-    public NoteRow Create(int? x, int? y, int width, int height)
+    public Note Create(int? x, int? y, int width, int height)
     {
         using var c = Open();
         using var cmd = c.CreateCommand();
@@ -119,7 +118,7 @@ public sealed class NoteStore
         cmd.Parameters.Add("@h", SqliteType.Integer).Value = height;
         cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var id = Convert.ToInt64(cmd.ExecuteScalar() ?? 0L);
-        return new NoteRow(id, "", x, y, width, height, true, "#FFF59E");
+        return new Note(id, "", x, y, width, height, true, "#FFF59E");
     }
 
     public void UpdateColor(long id, string color)
