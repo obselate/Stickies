@@ -9,7 +9,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Stickies.Services;
 
-namespace Stickies;
+namespace Stickies.Markdown;
 
 internal static class MarkdownRenderer
 {

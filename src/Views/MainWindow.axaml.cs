@@ -12,8 +12,10 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using Stickies.Animation;
+using Stickies.Markdown;
 using Stickies.Models;
 using Stickies.Services;
+using Stickies.Win32;
 
 namespace Stickies.Views;
 

@@ -8,7 +8,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using SkiaSharp;
 
-namespace Stickies;
+namespace Stickies.Animation;
 
 internal sealed class PeelOverlay : Control
 {

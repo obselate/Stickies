@@ -5,7 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using Stickies.Services;
 
-namespace Stickies;
+namespace Stickies.Win32;
 
 internal sealed partial class HotkeyHost : Window
 {

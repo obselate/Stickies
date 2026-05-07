@@ -2,7 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using Avalonia.Media;
 
-namespace Stickies;
+namespace Stickies.Win32;
 
 internal static partial class ColorDialog
 {

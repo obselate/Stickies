@@ -1,6 +1,6 @@
 using System;
 
-namespace Stickies;
+namespace Stickies.Animation;
 
 /// <summary>
 /// Solves cubic-bezier easing y = f(t) for animations.

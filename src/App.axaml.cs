@@ -11,6 +11,7 @@ using Avalonia.Threading;
 using Stickies.Models;
 using Stickies.Services;
 using Stickies.Views;
+using Stickies.Win32;
 
 namespace Stickies;
 

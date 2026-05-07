@@ -8,7 +8,7 @@ using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using SkiaSharp;
 
-namespace Stickies;
+namespace Stickies.Animation;
 
 internal sealed class PeelDrawOp : ICustomDrawOperation
 {
