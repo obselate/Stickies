@@ -9,20 +9,66 @@
         FontFamily="Segoe UI, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif"
         Title="Sticky">
 
+  <Window.Styles>
+    <Style Selector="Border.iconBtn">
+      <Setter Property="Width" Value="26"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Border.iconBtn:pointerover">
+      <Setter Property="Background" Value="#15000000"/>
+    </Style>
+  </Window.Styles>
   <Border Name="BodyBorder"
             Background="#FFF59E"
             BoxShadow="0 14 14 0 #50000000"
             CornerRadius="2"
             Focusable="True"
             IsTabStop="False">
-        <Border.ContextMenu>
-            <ContextMenu Name="NoteMenu">
-                <MenuItem Name="NewMenuItem" Header="New note" Click="OnNewClick"/>
-                <MenuItem Name="PinMenuItem" Click="OnPinClick"/>
-                <Separator/>
-                <MenuItem Padding="6,4" StaysOpenOnClick="True">
-                    <MenuItem.Header>
-                        <StackPanel Orientation="Horizontal" Spacing="6">
+        <Border.ContextFlyout>
+            <Flyout Placement="Pointer" ShowMode="Standard">
+                <Border Background="#FAFAFA" BorderBrush="#30000000" BorderThickness="1" CornerRadius="4" Padding="6">
+                    <StackPanel Spacing="6">
+                        <!-- Actions row -->
+                        <StackPanel Orientation="Horizontal" Spacing="2">
+                            <Border Classes="iconBtn" ToolTip.Tip="New note" PointerPressed="OnNewIconPressed">
+                                <Path Data="M3,7 H11 M7,3 V11"
+                                      Stroke="#333" StrokeThickness="1.4" StrokeLineCap="Round"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Name="PinIconBorder" Classes="iconBtn" ToolTip.Tip="Pin on top" PointerPressed="OnPinIconPressed">
+                                <Path Name="PinIcon"
+                                      Data="M6,2 L10,2 L10,4 L11,5 L11,7 L8.5,7 L8,12 L7.5,7 L5,7 L5,5 L6,4 Z"
+                                      Stroke="#333" StrokeThickness="1.2" Fill="Transparent" StrokeJoin="Round"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Name="LockIconBorder" Classes="iconBtn" ToolTip.Tip="Lock in place" PointerPressed="OnLockIconPressed">
+                                <Path Name="LockIcon"
+                                      Data="M3,7 L13,7 L13,13 L3,13 Z M5,7 V5 A3,3 0 0,1 11,5 V6"
+                                      Stroke="#333" StrokeThickness="1.25" Fill="Transparent" StrokeJoin="Round"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Name="DeleteIconBorder" Classes="iconBtn" ToolTip.Tip="Delete" PointerPressed="OnDeleteIconPressed">
+                                <Path Name="DeleteIcon"
+                                      Data="M4,5 H12 V12 H4 Z M3,5 H13 M6,4 H10 V5 M6.5,7 V11 M9.5,7 V11"
+                                      Stroke="#333" StrokeThickness="1.25" Fill="Transparent" StrokeJoin="Round"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Classes="iconBtn" ToolTip.Tip="Recycle bin" PointerPressed="OnBinIconPressed">
+                                <Path Data="M4,4 H10 V10 H4 Z M6,3 H12 V9 M5,6 H9 M5,8 H8"
+                                      Stroke="#333" StrokeThickness="1.2" Fill="Transparent" StrokeJoin="Round"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Classes="iconBtn" ToolTip.Tip="Settings" PointerPressed="OnSettingsIconPressed">
+                                <Path Data="M3,4 H13 M3,8 H13 M3,12 H13 M6,4 m-1.6,0 a1.6,1.6 0 1 0 3.2,0 a1.6,1.6 0 1 0 -3.2,0 M10,8 m-1.6,0 a1.6,1.6 0 1 0 3.2,0 a1.6,1.6 0 1 0 -3.2,0 M5,12 m-1.6,0 a1.6,1.6 0 1 0 3.2,0 a1.6,1.6 0 1 0 -3.2,0"
+                                      Stroke="#333" StrokeThickness="1.2" Fill="#FAFAFA" StrokeJoin="Round"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </StackPanel>
+                        <!-- Colors row -->
+                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,0,2,0">
                             <Ellipse Name="Sw1" Tag="#FFF59E" Width="20" Height="20" Fill="#FFF59E" Stroke="#60000000" StrokeThickness="1" Cursor="Hand" PointerPressed="OnSwatchPressed" ToolTip.Tip="Yellow"/>
                             <Ellipse Name="Sw2" Tag="#FFB6C1" Width="20" Height="20" Fill="#FFB6C1" Stroke="#60000000" StrokeThickness="1" Cursor="Hand" PointerPressed="OnSwatchPressed" ToolTip.Tip="Pink"/>
                             <Ellipse Name="Sw3" Tag="#A8DADC" Width="20" Height="20" Fill="#A8DADC" Stroke="#60000000" StrokeThickness="1" Cursor="Hand" PointerPressed="OnSwatchPressed" ToolTip.Tip="Blue"/>
@@ -32,15 +78,10 @@
                                 <TextBlock Text="…" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#444" Margin="0,-4,0,0"/>
                             </Border>
                         </StackPanel>
-                    </MenuItem.Header>
-                </MenuItem>
-                <Separator/>
-                <MenuItem Name="DeleteMenuItem" Header="Delete" Click="OnDeleteClick"/>
-                <MenuItem Name="LockMenuItem" Header="Lock in place" Click="OnLockToggleClick"/>
-                <!-- TODO(bpy): move bin entry to compact menu -->
-                <MenuItem Name="BinMenuItem" Header="Show recycle bin" Click="OnShowBinClick"/>
-            </ContextMenu>
-        </Border.ContextMenu>
+                    </StackPanel>
+                </Border>
+            </Flyout>
+        </Border.ContextFlyout>
         <Grid x:Name="BodyGrid" RowDefinitions="22,*">
             <Border Grid.Row="0"
                     Name="HeaderBar"

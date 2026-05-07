@@ -34,6 +34,18 @@ public partial class MainWindow : Window
     // Disposed on Closing. Locked state drives Show/Hide/Update calls.
     private ITapeHost? _tapeHost;
 
+    // Two-click delete: first click arms (red X, 3s window); second confirms.
+    private DispatcherTimer? _deleteRevertTimer;
+    private bool _deleteArmed;
+
+    private static readonly Geometry DeleteIconNormalGeo = Geometry.Parse("M4,5 H12 V12 H4 Z M3,5 H13 M6,4 H10 V5 M6.5,7 V11 M9.5,7 V11");
+    private static readonly Geometry DeleteIconArmedGeo = Geometry.Parse("M4,4 L12,12 M12,4 L4,12");
+    private static readonly Geometry LockClosedGeo = Geometry.Parse("M3,7 L13,7 L13,13 L3,13 Z M5,7 V5 A3,3 0 0,1 11,5 V7");
+    private static readonly Geometry LockOpenGeo = Geometry.Parse("M3,7 L13,7 L13,13 L3,13 Z M5,7 V5 A3,3 0 0,1 11,5 V6");
+    private static readonly IBrush DeleteNormalBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33));
+    private static readonly IBrush DeleteArmedBrush = new SolidColorBrush(Color.FromRgb(0xD3, 0x32, 0x2D));
+    private static readonly IBrush PinFillBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33));
+
     public long NoteId => _noteId;
 
     public MainWindow() : this(App.Store.Create(null, null, 280, 280)) { }
@@ -71,23 +83,11 @@ public partial class MainWindow : Window
         Closing += (_, _) =>
         {
             FlushPendingWrites();
+            _deleteRevertTimer?.Stop();
             _tapeHost?.Dispose();
             _tapeHost = null;
         };
         KeyDown += OnKeyDown;
-
-        // Mac convention is ⌘ instead of Ctrl. Override the menu accelerators at
-        // runtime so they display correctly; OnKeyDown also accepts Meta on Mac.
-        if (OperatingSystem.IsMacOS())
-        {
-            NewMenuItem.InputGesture = new KeyGesture(Key.N, KeyModifiers.Meta);
-            DeleteMenuItem.InputGesture = new KeyGesture(Key.D, KeyModifiers.Meta);
-        }
-        else
-        {
-            NewMenuItem.InputGesture = new KeyGesture(Key.N, KeyModifiers.Control);
-            DeleteMenuItem.InputGesture = new KeyGesture(Key.D, KeyModifiers.Control);
-        }
 
         NoteText.GotFocus += OnNoteFocusGot;
         NoteText.LostFocus += OnNoteFocusLost;
@@ -291,38 +291,94 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnNewClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => NoteSpawner.SpawnNew(this);
-
-    // TODO(bpy): wire SettingsWindow.ShowAsync(this) from compact menu here.
-
-    private async void OnShowBinClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-        => await BinWindow.ShowAsync(this);
-
-    private void OnDeleteClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => DeleteNote();
-
-    private void OnPinClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void OnNewIconPressed(object? sender, PointerPressedEventArgs e)
     {
+        e.Handled = true;
+        BodyBorder.ContextFlyout?.Hide();
+        NoteSpawner.SpawnNew(this);
+    }
+
+    private void OnPinIconPressed(object? sender, PointerPressedEventArgs e)
+    {
+        e.Handled = true;
         ApplyPinned(!_pinned);
         App.Store.UpdatePinned(_noteId, _pinned);
+    }
+
+    private void OnLockIconPressed(object? sender, PointerPressedEventArgs e)
+    {
+        e.Handled = true;
+        ApplyLocked(!_locked);
+        App.Store.UpdateLocked(_noteId, _locked);
+    }
+
+    private void OnDeleteIconPressed(object? sender, PointerPressedEventArgs e)
+    {
+        e.Handled = true;
+        if (_deleteArmed)
+        {
+            DisarmDelete();
+            BodyBorder.ContextFlyout?.Hide();
+            DeleteNote();
+            return;
+        }
+        ArmDelete();
+    }
+
+    private async void OnBinIconPressed(object? sender, PointerPressedEventArgs e)
+    {
+        e.Handled = true;
+        BodyBorder.ContextFlyout?.Hide();
+        await BinWindow.ShowAsync(this);
+    }
+
+    private async void OnSettingsIconPressed(object? sender, PointerPressedEventArgs e)
+    {
+        e.Handled = true;
+        BodyBorder.ContextFlyout?.Hide();
+        await SettingsWindow.ShowAsync(this);
+    }
+
+    private void ArmDelete()
+    {
+        _deleteArmed = true;
+        DeleteIcon.Data = DeleteIconArmedGeo;
+        DeleteIcon.Stroke = DeleteArmedBrush;
+        DeleteIcon.StrokeThickness = 1.8;
+        ToolTip.SetTip(DeleteIconBorder, "Click again to delete");
+
+        _deleteRevertTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _deleteRevertTimer.Tick -= OnDeleteRevertTick;
+        _deleteRevertTimer.Tick += OnDeleteRevertTick;
+        _deleteRevertTimer.Stop();
+        _deleteRevertTimer.Start();
+    }
+
+    private void OnDeleteRevertTick(object? sender, EventArgs e) => DisarmDelete();
+
+    private void DisarmDelete()
+    {
+        _deleteRevertTimer?.Stop();
+        _deleteArmed = false;
+        DeleteIcon.Data = DeleteIconNormalGeo;
+        DeleteIcon.Stroke = DeleteNormalBrush;
+        DeleteIcon.StrokeThickness = 1.25;
+        ToolTip.SetTip(DeleteIconBorder, "Delete");
     }
 
     private void ApplyPinned(bool pinned)
     {
         _pinned = pinned;
         Topmost = pinned;
-        PinMenuItem.Header = pinned ? "Unpin from top" : "Pin on top";
-    }
-
-    private void OnLockToggleClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        ApplyLocked(!_locked);
-        App.Store.UpdateLocked(_noteId, _locked);
+        PinIcon.Fill = pinned ? PinFillBrush : Brushes.Transparent;
+        ToolTip.SetTip(PinIconBorder, pinned ? "Unpin from top" : "Pin on top");
     }
 
     private void ApplyLocked(bool locked)
     {
         _locked = locked;
-        LockMenuItem.Header = locked ? "Unlock" : "Lock in place";
+        LockIcon.Data = locked ? LockClosedGeo : LockOpenGeo;
+        ToolTip.SetTip(LockIconBorder, locked ? "Unlock" : "Lock in place");
         if (_tapeHost == null) return; // ctor path; OnWindowOpened will Show if locked
         if (locked)
         {
@@ -341,7 +397,7 @@ public partial class MainWindow : Window
         if (sender is not Ellipse el || el.Tag is not string hex) return;
         ApplyColor(hex);
         App.Store.UpdateColor(_noteId, hex);
-        NoteMenu.Close();
+        BodyBorder.ContextFlyout?.Hide();
         e.Handled = true;
     }
 
@@ -349,7 +405,7 @@ public partial class MainWindow : Window
     {
         if (_locked) return;
         e.Handled = true;
-        NoteMenu.Close();
+        BodyBorder.ContextFlyout?.Hide();
         var initial = Color.Parse(_color);
         var picked = await HsvColorPicker.ShowAsync(this, initial,
             live => ApplyColor($"#{live.R:X2}{live.G:X2}{live.B:X2}"));
@@ -358,8 +414,6 @@ public partial class MainWindow : Window
         ApplyColor(hex);
         App.Store.UpdateColor(_noteId, hex);
     }
-
-    // TODO(bpy): wire SettingsWindow.ShowAsync(this) from compact menu here.
 
     private void ApplyColor(string hex)
     {
