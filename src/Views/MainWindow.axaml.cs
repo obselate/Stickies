@@ -15,7 +15,7 @@ using Stickies.Animation;
 using Stickies.Models;
 using Stickies.Services;
 
-namespace Stickies;
+namespace Stickies.Views;
 
 public partial class MainWindow : Window
 {

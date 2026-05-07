@@ -10,6 +10,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Stickies.Models;
 using Stickies.Services;
+using Stickies.Views;
 
 namespace Stickies;
 

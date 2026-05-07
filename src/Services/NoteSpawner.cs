@@ -12,6 +12,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Stickies.Animation;
+using Stickies.Views;
 
 namespace Stickies.Services;
 

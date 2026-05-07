@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="Stickies.MainWindow"
+        x:Class="Stickies.Views.MainWindow"
         Width="280" Height="280"
         MinWidth="180" MinHeight="140"
         SystemDecorations="None"
