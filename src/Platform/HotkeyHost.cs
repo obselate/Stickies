@@ -20,6 +20,10 @@ internal static class HotkeyHost
                 w.Show();
                 return w;
             }
+            if (OperatingSystem.IsMacOS())
+            {
+                return new Stickies.Mac.HotkeyHost();
+            }
         }
         catch
         {
