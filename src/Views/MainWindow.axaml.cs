@@ -14,6 +14,7 @@ using Avalonia.Threading;
 using Stickies.Animation;
 using Stickies.Markdown;
 using Stickies.Models;
+using Stickies.Platform;
 using Stickies.Services;
 
 namespace Stickies.Views;
@@ -28,6 +29,10 @@ public partial class MainWindow : Window
     private bool _locked;
     internal bool _isAnimating;
     internal string _color = "#FFF59E";
+
+    // Created lazily on Opened (needs the platform window handle on Win32).
+    // Disposed on Closing. Locked state drives Show/Hide/Update calls.
+    private ITapeHost? _tapeHost;
 
     public long NoteId => _noteId;
 
@@ -55,10 +60,20 @@ public partial class MainWindow : Window
         _saveBoundsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         _saveBoundsTimer.Tick += OnSaveBoundsTick;
 
-        PositionChanged += (_, _) => { if (_ready) Restart(_saveBoundsTimer); };
+        PositionChanged += (_, _) =>
+        {
+            if (!_ready) return;
+            Restart(_saveBoundsTimer);
+            if (_locked) UpdateTape();
+        };
 
         Opened += OnWindowOpened;
-        Closing += (_, _) => FlushPendingWrites();
+        Closing += (_, _) =>
+        {
+            FlushPendingWrites();
+            _tapeHost?.Dispose();
+            _tapeHost = null;
+        };
         KeyDown += OnKeyDown;
 
         // Mac convention is ⌘ instead of Ctrl. Override the menu accelerators at
@@ -92,6 +107,13 @@ public partial class MainWindow : Window
     {
         _ready = true;
         OnSaveBoundsTick(null, EventArgs.Empty);
+
+        _tapeHost = TapeHost.Create(this);
+        if (_locked)
+        {
+            UpdateTape();
+            _tapeHost.Show();
+        }
 
         Stickies.Services.Visibility.NoteSurfaced();
 
@@ -209,7 +231,17 @@ public partial class MainWindow : Window
     protected override void OnSizeChanged(SizeChangedEventArgs e)
     {
         base.OnSizeChanged(e);
-        if (_ready) Restart(_saveBoundsTimer);
+        if (!_ready) return;
+        Restart(_saveBoundsTimer);
+        if (_locked) UpdateTape();
+    }
+
+    private void UpdateTape()
+    {
+        if (_tapeHost == null) return;
+        var scale = DesktopScaling;
+        var size = PixelSize.FromSize(new Size(Width, Height), scale);
+        _tapeHost.Update(new PixelRect(Position, size), scale);
     }
 
     private static void Restart(DispatcherTimer t)
@@ -283,17 +315,24 @@ public partial class MainWindow : Window
 
     private void OnLockToggleClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        _locked = !_locked;
+        ApplyLocked(!_locked);
         App.Store.UpdateLocked(_noteId, _locked);
-        LockMenuItem.Header = _locked ? "Unlock" : "Lock in place";
-        LockIcon.IsVisible = _locked;
     }
 
     private void ApplyLocked(bool locked)
     {
         _locked = locked;
         LockMenuItem.Header = locked ? "Unlock" : "Lock in place";
-        LockIcon.IsVisible = locked;
+        if (_tapeHost == null) return; // ctor path; OnWindowOpened will Show if locked
+        if (locked)
+        {
+            UpdateTape();
+            _tapeHost.Show();
+        }
+        else
+        {
+            _tapeHost.Hide();
+        }
     }
 
     private void OnSwatchPressed(object? sender, PointerPressedEventArgs e)

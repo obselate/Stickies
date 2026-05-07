@@ -9,9 +9,9 @@
         FontFamily="Segoe UI, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif"
         Title="Sticky">
 
-    <Border Name="BodyBorder"
+  <Border Name="BodyBorder"
             Background="#FFF59E"
-            BoxShadow="2 4 16 0 #50000000"
+            BoxShadow="0 14 14 0 #50000000"
             CornerRadius="2"
             Focusable="True"
             IsTabStop="False">
@@ -85,15 +85,6 @@
                       Stretch="Fill"/>
             </Border>
 
-            <Path Name="LockIcon"
-                  Grid.Row="1"
-                  Width="10" Height="10"
-                  Fill="Black" Opacity="0.3"
-                  IsHitTestVisible="False"
-                  IsVisible="False"
-                  Data="M 3 7 V 5 a 2 2 0 0 1 4 0 V 7 H 7 V 5 a 1 1 0 0 0 -2 0 V 7 Z M 2 7 H 8 V 11 H 2 Z"
-                  HorizontalAlignment="Right" VerticalAlignment="Top"
-                  Margin="0,4,4,0"/>
         </Grid>
     </Border>
 </Window>

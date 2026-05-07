@@ -69,6 +69,12 @@ internal static class Program
             {
                 // Drop the GPU/ANGLE renderer — sticky notes are static text, software path is plenty.
                 // Lets us exclude av_libglesv2.dll from the publish output (-5.4MB).
+                //
+                // Note: this means TransparencyLevelHint=Transparent windows can't show desktop through
+                // uncovered pixels — Avalonia's Win32 software path composes via RedirectionSurface,
+                // which has no per-pixel alpha. The lock tape works around this with a Win32
+                // layered-window TapeHost (see ITapeHost / WinTapeHost) rather than an in-window
+                // transparent buffer.
                 RenderingMode = new[] { Win32RenderingMode.Software },
             })
             .LogToTrace();
