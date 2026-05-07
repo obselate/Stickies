@@ -96,7 +96,9 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y imagemagick libfuse2
+          sudo apt-get install -y imagemagick
+          # No FUSE on CI: linuxdeploy is itself an AppImage; we run it via
+          # APPIMAGE_EXTRACT_AND_RUN below to avoid needing libfuse2 at all.
           curl -L -o /tmp/linuxdeploy.AppImage \
             https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           chmod +x /tmp/linuxdeploy.AppImage

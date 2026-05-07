@@ -1,6 +1,6 @@
 # Stickies
 
-A reliable, lean, no-nonsense sticky-notes app. Pure local storage, no accounts, no cloud sync, no AI integration, no formatting toolbars. Just text on yellow squares that survive crashes, start fast, and don't change behind your back.
+Windows Sticky Notes that don't suck. That's it.
 
 Native binaries for **Windows**, **macOS** (Apple Silicon), and **Linux** (x64).
 
@@ -10,13 +10,13 @@ Grab the latest release from [Releases](https://github.com/obselate/Stickies/rel
 
 ### Windows
 
-Download `Stickies-X.Y.Z-win-x64.msi` and run it. Per-user install (no UAC prompt). Or grab the `.zip` and run `Stickies.exe` directly.
+Download `Stickies-X.Y.Z-win-x64.msi` and run it. Per-user install (no UAC prompt). SmartScreen may show "Windows protected your PC" because the build isn't signed — click **More info** → **Run anyway**. Or grab the `.zip` and run `Stickies.exe` directly.
 
 ### macOS (Apple Silicon)
 
 Download `Stickies-X.Y.Z-osx-arm64.dmg`, mount it, drag `Stickies.app` to `/Applications`.
 
-The build is unsigned, so on first launch macOS Gatekeeper will block it. Right-click `Stickies.app` → **Open** → confirm. After that it launches normally.
+The build is unsigned, so on first launch macOS Gatekeeper blocks it. On macOS 14 (Sonoma) and earlier: right-click `Stickies.app` → **Open** → **Open** in the warning dialog. On macOS 15 (Sequoia) and later: launch it once, then go to **System Settings → Privacy & Security**, scroll to "Stickies was blocked", click **Open Anyway**.
 
 ### Linux (x64)
 
@@ -27,7 +27,13 @@ chmod +x Stickies-*.AppImage
 ./Stickies-*.AppImage
 ```
 
-The AppImage runtime needs FUSE; on most distros `libfuse2` is preinstalled. If it isn't: `sudo apt install libfuse2` (Debian/Ubuntu) or your distro's equivalent.
+AppImage uses FUSE to self-mount at startup. Most desktop Linux distros ship with FUSE; if yours doesn't:
+
+- Ubuntu 22.04 / Debian: `sudo apt install libfuse2`
+- Ubuntu 24.04+: `sudo apt install libfuse2t64`
+- Fedora / RHEL: `sudo dnf install fuse-libs`
+
+If you can't install FUSE (e.g. a locked-down container), run the AppImage with `--appimage-extract-and-run` to extract and launch without mounting.
 
 ## Use
 
@@ -36,7 +42,7 @@ The AppImage runtime needs FUSE; on most distros `libfuse2` is preinstalled. If 
 | **Spawn a new note** | Ctrl+Shift+S (Windows / Linux) · ⌘⇧S (macOS) |
 | **New from a note** | Right-click → New note · Ctrl+N |
 | **Pin on top** | Right-click → Pin on top |
-| **Change color** | Right-click → swatch · `…` for custom |
+| **Change color** | Right-click → swatch · `…` for custom HSV picker |
 | **Delete** | Right-click → Delete · Ctrl+Delete |
 
 Notes auto-save as you type. Position and size persist per note. Soft-delete only — there's no recycle bin UI yet, but nothing's gone from the database.
@@ -66,4 +72,3 @@ NativeAOT does not cross-compile across host OS, so each native binary must be b
 ## Stack
 
 Avalonia 11.3 · .NET 9 NativeAOT · Microsoft.Data.Sqlite. No view-models, no MVVM framework, no AI, no telemetry. Targets: cold start <300ms, <60MB RAM with 10 notes, exe <25MB.
-
