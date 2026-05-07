@@ -63,7 +63,7 @@ internal sealed unsafe partial class HotkeyHost : IHotkeyHost
         if (kc == 0)
             throw new InvalidOperationException($"XKeysymToKeycode returned 0 for VK 0x{vk:X2}");
 
-        _bindings.Add((kc, x11Mods, callback));
+        lock (_bindings) { _bindings.Add((kc, x11Mods, callback)); }
 
         GrabKeyAt(kc, x11Mods);
         GrabKeyAt(kc, x11Mods | LockMask);
@@ -98,13 +98,16 @@ internal sealed unsafe partial class HotkeyHost : IHotkeyHost
             {
                 XNextEvent(_display, &ev);
                 if (ev.type != KeyPress) continue;
-                foreach (var b in _bindings)
+                lock (_bindings)
                 {
-                    if (ev.keycode == b.keycode)
+                    foreach (var b in _bindings)
                     {
-                        var cb = b.callback;
-                        Dispatcher.UIThread.Post(cb);
-                        break;
+                        if (ev.keycode == b.keycode)
+                        {
+                            var cb = b.callback;
+                            Dispatcher.UIThread.Post(cb);
+                            break;
+                        }
                     }
                 }
             }
