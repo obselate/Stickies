@@ -9,10 +9,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    runs-on: windows-latest
-    permissions:
-      contents: write
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64   }
+          - { os: macos-latest,   rid: osx-arm64 }
+          - { os: ubuntu-latest,  rid: linux-x64 }
+    runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,36 +30,36 @@ jobs:
           cache: true
           cache-dependency-path: 'Stickies.csproj'
 
-      - name: Extract version from tag
-        shell: pwsh
+      - name: Resolve version
+        shell: bash
         run: |
-          $tag = "${{ github.ref_name }}"
-          if ($tag -match '^v(\d+\.\d+\.\d+)$') {
-            $version = $Matches[1]
-          } else {
-            # workflow_dispatch path — WiX Package/@Version requires strict
-            # numeric format, so no '-dev' suffix.
-            $version = "0.0.0"
-          }
-          Write-Host "VERSION=$version"
-          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          if [ "${{ github.event_name }}" = "push" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="0.0.0"
+          fi
+          echo "VERSION=$V" >> $GITHUB_ENV
 
       - name: Restore
         run: dotnet restore
 
       - name: Publish AOT (with warning gate, version-stamped)
+        shell: bash
         run: |
-          dotnet publish -c Release -r win-x64 --no-restore `
-            -p:Version=$env:VERSION `
-            -p:TreatWarningsAsErrors=true `
+          dotnet publish -c Release -r ${{ matrix.rid }} --no-restore \
+            -p:Version=$VERSION \
+            -p:TreatWarningsAsErrors=true \
             -p:WarningsNotAsErrors=IL2104
 
-      - name: Strip native AOT pdbs from publish output
+      # ----- Windows: zip + WiX MSI -----
+      - name: Strip native AOT pdbs (Windows)
+        if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           Remove-Item "bin\Release\net9.0\win-x64\publish\*.pdb" -Force -ErrorAction SilentlyContinue
 
-      - name: Size budget
+      - name: Size budget (Windows)
+        if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           $publishDir = "bin\Release\net9.0\win-x64\publish"
@@ -62,35 +68,84 @@ jobs:
           if ($exe -gt 18MB) { throw "Stickies.exe = $exe bytes (> 18MB cap)" }
           if ($dir -gt 30MB) { throw "publish/ total = $dir bytes (> 30MB cap)" }
 
-      - name: Build MSI
+      - name: Build MSI (Windows)
+        if: matrix.os == 'windows-latest'
         run: |
           dotnet build installer/Stickies.wixproj -c Release `
             -p:Version=$env:VERSION
 
-      - name: Package zip
+      - name: Package Windows artifacts
+        if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          $zip = "Stickies-$env:VERSION-win-x64.zip"
+          New-Item -ItemType Directory -Force -Path "build\out" | Out-Null
+          $zip = "build\out\Stickies-$env:VERSION-win-x64.zip"
           Compress-Archive -Path "bin\Release\net9.0\win-x64\publish\*" -DestinationPath $zip
-          "ZIP_PATH=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          "MSI_PATH=installer\bin\Release\Stickies-$env:VERSION.msi" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Copy-Item "installer\bin\Release\Stickies-$env:VERSION.msi" "build\out\"
 
-      - name: Upload artifacts (always, for inspection)
+      # ----- Mac: package.sh -> .dmg -----
+      - name: Package Mac dmg
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          chmod +x build/mac/package.sh
+          VERSION="$VERSION" build/mac/package.sh
+
+      # ----- Linux: install deps + package.sh -> .AppImage -----
+      - name: Install Linux packaging deps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick libfuse2
+          curl -L -o /tmp/linuxdeploy.AppImage \
+            https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x /tmp/linuxdeploy.AppImage
+          sudo mv /tmp/linuxdeploy.AppImage /usr/local/bin/linuxdeploy
+
+      - name: Package Linux AppImage
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          chmod +x build/linux/package.sh
+          VERSION="$VERSION" build/linux/package.sh
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: stickies-${{ env.VERSION }}
+          name: stickies-${{ matrix.rid }}
           path: |
-            ${{ env.ZIP_PATH }}
-            ${{ env.MSI_PATH }}
+            build/out/*
+            build/mac/out/*.dmg
+            build/linux/out/*.AppImage
+          if-no-files-found: ignore
           retention-days: 7
 
+  publish:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Resolve version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
       - name: Create GitHub Release
-        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" `
-            "$env:ZIP_PATH" `
-            "$env:MSI_PATH" `
-            --title "Stickies $env:VERSION" `
+          gh release create "$GITHUB_REF_NAME" \
+            artifacts/* \
+            --title "Stickies $VERSION" \
             --generate-notes

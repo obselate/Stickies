@@ -1,4 +1,5 @@
 name: ci
+
 on:
   pull_request:
     branches: [main]
@@ -11,9 +12,18 @@ concurrency:
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64,   gate_size: true,  build_msi: true  }
+          - { os: macos-latest,   rid: osx-arm64, gate_size: false, build_msi: false }
+          - { os: ubuntu-latest,  rid: linux-x64, gate_size: false, build_msi: false }
+    runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
@@ -24,17 +34,20 @@ jobs:
         run: dotnet restore
 
       - name: Publish AOT (with warning gate)
+        shell: bash
         run: |
-          dotnet publish -c Release -r win-x64 --no-restore `
-            -p:TreatWarningsAsErrors=true `
+          dotnet publish -c Release -r ${{ matrix.rid }} --no-restore \
+            -p:TreatWarningsAsErrors=true \
             -p:WarningsNotAsErrors=IL2104
 
-      - name: Strip native AOT pdbs from publish output
+      - name: Strip native AOT pdbs from Windows publish output
+        if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           Remove-Item "bin\Release\net9.0\win-x64\publish\*.pdb" -Force -ErrorAction SilentlyContinue
 
-      - name: Size budget
+      - name: Size budget (Windows)
+        if: matrix.gate_size
         shell: pwsh
         run: |
           $publishDir = "bin\Release\net9.0\win-x64\publish"
@@ -45,6 +58,7 @@ jobs:
           if ($dir -gt 30MB) { throw "publish/ total = $dir bytes (> 30MB cap)" }
 
       - name: Build MSI (validation only — no upload)
+        if: matrix.build_msi
         run: |
           dotnet build installer/Stickies.wixproj -c Release `
             -p:Version=0.0.0
