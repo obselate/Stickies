@@ -123,6 +123,7 @@ internal sealed unsafe partial class HotkeyHost : IHotkeyHost
         // X11 keysyms for ASCII letters are the lowercase ASCII codepoint.
         0x53 => 0x73, // S -> XK_s
         0x4E => 0x6E, // N -> XK_n
+        0x48 => 0x68, // H -> XK_h
         _ => 0,
     };
 

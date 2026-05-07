@@ -89,6 +89,7 @@ internal sealed unsafe partial class HotkeyHost : IHotkeyHost
     {
         0x53 => 0x01, // S -> kVK_ANSI_S
         0x4E => 0x2D, // N -> kVK_ANSI_N
+        0x48 => 0x04, // H -> kVK_ANSI_H
         _ => 0,
     };
 

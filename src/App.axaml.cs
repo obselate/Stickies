@@ -43,6 +43,13 @@ public partial class App : Application
                 0x4E,
                 () => NoteSpawner.SpawnNew(null));
 
+            // Ctrl+H app-wide hide/show toggle. Mac uses ⌘+Shift+H to avoid the system
+            // ⌘+H "hide app" gesture; everywhere else, plain Ctrl+H.
+            var hideMods = OperatingSystem.IsMacOS()
+                ? HotkeyModifier.Control | HotkeyModifier.Shift
+                : HotkeyModifier.Control;
+            _hotkeyHost.Register(hideMods, 0x48, Visibility.Toggle);
+
             StartIpcServer(desktop);
         }
         base.OnFrameworkInitializationCompleted();
