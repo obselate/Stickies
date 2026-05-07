@@ -279,7 +279,7 @@ public partial class MainWindow : Window
         catch { return; }
         _color = hex;
         BodyBorder.Background = new SolidColorBrush(body);
-        HeaderBar.Background = new SolidColorBrush(Darker(body, 0.92));
+        HeaderBar.Background = new SolidColorBrush(ColorOps.Darken(body, 0.92));
         UpdateSwatchSelection();
 
         // If we're currently showing the rendered view, re-render so code-span
@@ -300,11 +300,6 @@ public partial class MainWindow : Window
             sw.StrokeThickness = current ? 2.5 : 1;
         }
     }
-
-    private static Color Darker(Color c, double f) => Color.FromRgb(
-        (byte)Math.Clamp(c.R * f, 0, 255),
-        (byte)Math.Clamp(c.G * f, 0, 255),
-        (byte)Math.Clamp(c.B * f, 0, 255));
 
     private void DeleteNote()
     {
