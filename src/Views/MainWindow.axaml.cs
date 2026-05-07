@@ -38,7 +38,7 @@ public partial class MainWindow : Window
         Width = row.Width;
         Height = row.Height;
 
-        if (row.X is int x && row.Y is int y && IsOnAnyScreen(x, y, row.Width, row.Height))
+        if (row.X is int x && row.Y is int y && PlacementService.IsOnAnyScreen(Screens?.All, x, y, row.Width, row.Height))
             Position = new PixelPoint(x, y);
 
         NoteText.Text = row.Text;
@@ -154,19 +154,6 @@ public partial class MainWindow : Window
         {
             // Silently ignore launch failures — invalid URL or no default browser.
         }
-    }
-
-    private bool IsOnAnyScreen(int x, int y, int w, int h)
-    {
-        var screens = Screens?.All;
-        if (screens is null || screens.Count == 0) return true;
-        foreach (var s in screens)
-        {
-            var b = s.Bounds;
-            if (x + w > b.X && x < b.X + b.Width && y + h > b.Y && y < b.Y + b.Height)
-                return true;
-        }
-        return false;
     }
 
     private void OnDragBarPressed(object? sender, PointerPressedEventArgs e)
@@ -321,7 +308,7 @@ public partial class MainWindow : Window
             int? nx = null, ny = null;
             if (reference is not null)
             {
-                var pos = FindAvailableSpace(null, reference.Position, W, H);
+                var pos = PlacementService.FindAvailableSpace(null, reference.Position, W, H);
                 nx = pos.X;
                 ny = pos.Y;
             }
@@ -387,11 +374,11 @@ public partial class MainWindow : Window
         // placement existed), find a free spot for the new note rather than
         // landing it on top of the twin.
         var preferred = source.Position;
-        var newNotePos = OverlapsAnyOther(source, preferred, width, height)
-            ? FindAvailableSpace(source, preferred, width, height)
+        var newNotePos = PlacementService.OverlapsAnyOther(source, preferred, width, height)
+            ? PlacementService.FindAvailableSpace(source, preferred, width, height)
             : preferred;
 
-        var oldNewPos = FindAvailableSpace(source, newNotePos, width, height);
+        var oldNewPos = PlacementService.FindAvailableSpace(source, newNotePos, width, height);
 
         AnimateMove(source, oldNewPos);
 
@@ -400,29 +387,6 @@ public partial class MainWindow : Window
         fresh.Opacity = 0;
         fresh.Show();
         FadeIn(fresh, durationMs: 200);
-    }
-
-    private static bool OverlapsAnyOther(MainWindow source, PixelPoint pos, int width, int height)
-    {
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
-            return false;
-        // pos is physical (PixelPoint); convert width/height (DIPs) using source's scaling.
-        double srcScale = source.RenderScaling > 0 ? source.RenderScaling : 1.0;
-        var rect = new PixelRect(pos, new PixelSize((int)(width * srcScale), (int)(height * srcScale)));
-        foreach (var w in desktop.Windows)
-        {
-            if (w is MainWindow mw && mw != source && mw.IsVisible)
-            {
-                if (rect.Intersects(PhysicalRect(mw))) return true;
-            }
-        }
-        return false;
-    }
-
-    private static PixelRect PhysicalRect(MainWindow mw)
-    {
-        double s = mw.RenderScaling > 0 ? mw.RenderScaling : 1.0;
-        return new PixelRect(mw.Position, new PixelSize((int)(mw.Width * s), (int)(mw.Height * s)));
     }
 
     // First visible MainWindow (any). Used as a placement anchor when a new
@@ -434,85 +398,6 @@ public partial class MainWindow : Window
         foreach (var w in desktop.Windows)
             if (w is MainWindow mw && mw.IsVisible) return mw;
         return null;
-    }
-
-    // Spirals out from `origin` in cardinal-then-diagonal order at increasing
-    // distances. Skips positions that overlap any open note (other than `source`,
-    // which is moving away) or fall within margin of a screen edge. The origin
-    // itself is treated as occupied. Best-effort fallback when crowded: small
-    // offset clamped to screen.
-    private static PixelPoint FindAvailableSpace(
-        MainWindow? source,
-        PixelPoint origin,
-        int width,
-        int height)
-    {
-        // Logical (DIP) constants converted to physical via screenAnchor.RenderScaling.
-        const int marginDip = 40;
-        const int gapDip = 12;
-
-        MainWindow? screenAnchor = source;
-        var others = new List<PixelRect>();
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            foreach (var w in desktop.Windows)
-            {
-                if (w is MainWindow mw && mw != source && mw.IsVisible)
-                {
-                    others.Add(PhysicalRect(mw));
-                    screenAnchor ??= mw;
-                }
-            }
-        }
-
-        double scale = screenAnchor?.RenderScaling > 0 ? screenAnchor.RenderScaling : 1.0;
-        int wPx = (int)(width * scale);
-        int hPx = (int)(height * scale);
-        int marginPx = (int)(marginDip * scale);
-        int gapPx = (int)(gapDip * scale);
-
-        others.Add(new PixelRect(origin, new PixelSize(wPx, hPx)));
-
-        var screen = screenAnchor?.Screens?.ScreenFromWindow(screenAnchor);
-        var screenArea = screen?.WorkingArea ?? new PixelRect(0, 0, 1920, 1080);
-
-        var directions = new (int dx, int dy)[]
-        {
-            (1, 0), (0, 1), (-1, 0), (0, -1),
-            (1, 1), (-1, 1), (1, -1), (-1, -1),
-        };
-
-        for (int dist = 1; dist <= 5; dist++)
-        {
-            foreach (var (dx, dy) in directions)
-            {
-                int nx = origin.X + dx * (wPx + gapPx) * dist;
-                int ny = origin.Y + dy * (hPx + gapPx) * dist;
-
-                if (nx < screenArea.X + marginPx) continue;
-                if (ny < screenArea.Y + marginPx) continue;
-                if (nx + wPx > screenArea.X + screenArea.Width - marginPx) continue;
-                if (ny + hPx > screenArea.Y + screenArea.Height - marginPx) continue;
-
-                var candidate = new PixelRect(nx, ny, wPx, hPx);
-                bool overlap = false;
-                foreach (var other in others)
-                {
-                    if (candidate.Intersects(other)) { overlap = true; break; }
-                }
-                if (overlap) continue;
-
-                return new PixelPoint(nx, ny);
-            }
-        }
-
-        int fxMin = screenArea.X + marginPx;
-        int fxMax = screenArea.X + screenArea.Width - wPx - marginPx;
-        int fyMin = screenArea.Y + marginPx;
-        int fyMax = screenArea.Y + screenArea.Height - hPx - marginPx;
-        int fx = Math.Clamp(origin.X + gapPx, Math.Min(fxMin, fxMax), Math.Max(fxMin, fxMax));
-        int fy = Math.Clamp(origin.Y + gapPx, Math.Min(fyMin, fyMax), Math.Max(fyMin, fyMax));
-        return new PixelPoint(fx, fy);
     }
 
     private static void AnimateMove(MainWindow w, PixelPoint to, int durationMs = 200)
