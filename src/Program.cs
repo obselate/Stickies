@@ -8,7 +8,7 @@ namespace Stickies;
 
 internal static class Program
 {
-    public const string MutexName = @"Local\Stickies.SingleInstance";
+    public const string MutexName = "Stickies.SingleInstance";
     public const string PipeName = "Stickies.IPC";
 
     private static Mutex? _mutex;

@@ -276,7 +276,7 @@ internal static class MarkdownRenderer
             Child = new TextBlock
             {
                 Text = text,
-                FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
+                FontFamily = new FontFamily("Cascadia Mono, Consolas, 'SF Mono', Menlo, 'DejaVu Sans Mono', monospace"),
                 FontSize = 13,
             }
         };

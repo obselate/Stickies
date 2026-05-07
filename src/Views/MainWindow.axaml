@@ -6,7 +6,7 @@
         SystemDecorations="None"
         TransparencyLevelHint="Transparent"
         Background="Transparent"
-        FontFamily="Segoe UI"
+        FontFamily="Segoe UI, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif"
         Title="Sticky">
 
     <Border Name="BodyBorder"
