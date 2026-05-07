@@ -36,11 +36,12 @@ public partial class App : Application
                 NoteSpawner.SpawnNew(null);
 
             _hotkeyHost = HotkeyHost.Create();
-            _hotkeyHost.HotkeyPressed += () => NoteSpawner.SpawnNew(null);
-            // Cross-platform binding. On Windows / Linux: Ctrl+Shift+N.
-            // On Mac: HotkeyModifier.Control maps to cmdKey, so the same call site
-            // lands on ⌘⇧N — the Mac-natural new-window combo paired with ⌘N in-app.
-            _hotkeyHost.Register(HotkeyModifier.Control | HotkeyModifier.Shift, 0x4E);
+            // Cross-platform binding: Ctrl+Shift+N. Mac maps Control→cmdKey, so this lands
+            // on ⌘⇧N — the Mac-natural new-window combo paired with ⌘N in-app.
+            _hotkeyHost.Register(
+                HotkeyModifier.Control | HotkeyModifier.Shift,
+                0x4E,
+                () => NoteSpawner.SpawnNew(null));
 
             StartIpcServer(desktop);
         }

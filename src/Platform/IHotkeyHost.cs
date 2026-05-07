@@ -4,6 +4,5 @@ namespace Stickies.Platform;
 
 internal interface IHotkeyHost : IDisposable
 {
-    event Action HotkeyPressed;
-    void Register(HotkeyModifier mods, uint vk);
+    void Register(HotkeyModifier mods, uint vk, Action callback);
 }

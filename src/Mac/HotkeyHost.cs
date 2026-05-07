@@ -32,6 +32,9 @@ internal sealed unsafe partial class HotkeyHost : IHotkeyHost
     private const uint optionKey  = 0x0800;
     private const uint controlKey = 0x1000;
 
+    private const uint kEventParamDirectObject = 0x2D2D2D2Du; // '----'
+    private const uint kTypeEventHotKeyID      = 0x686B6964u; // 'hkid'
+
     [StructLayout(LayoutKind.Sequential)]
     private struct EventHotKeyID
     {
@@ -46,16 +49,24 @@ internal sealed unsafe partial class HotkeyHost : IHotkeyHost
         public uint eventKind;
     }
 
+    private readonly System.Collections.Generic.Dictionary<uint, (IntPtr hkRef, Action callback)> _callbacks = new();
     private static HotkeyHost? s_instance;
-    private IntPtr _hotkeyRef;
+    private uint _nextId = 1;
     private IntPtr _eventHandlerRef;
 
-    public event Action? HotkeyPressed;
-
-    public void Register(HotkeyModifier mods, uint vk)
+    public void Register(HotkeyModifier mods, uint vk, Action callback)
     {
-        if (_hotkeyRef != IntPtr.Zero) return;
         s_instance = this;
+
+        if (_eventHandlerRef == IntPtr.Zero)
+        {
+            var spec = new EventTypeSpec { eventClass = kEventClassKeyboard, eventKind = kEventHotKeyPressed };
+            IntPtr handlerRef;
+            int status = InstallEventHandler(
+                GetApplicationEventTarget(), &Callback, 1, &spec, IntPtr.Zero, &handlerRef);
+            if (status != 0) throw new InvalidOperationException($"Carbon InstallEventHandler failed: {status}");
+            _eventHandlerRef = handlerRef;
+        }
 
         uint carbonMods = 0;
         if ((mods & HotkeyModifier.Control) != 0) carbonMods |= cmdKey;
@@ -64,24 +75,13 @@ internal sealed unsafe partial class HotkeyHost : IHotkeyHost
         if ((mods & HotkeyModifier.Super)   != 0) carbonMods |= controlKey;
 
         uint kvk = MapVk(vk);
-
-        var spec = new EventTypeSpec { eventClass = kEventClassKeyboard, eventKind = kEventHotKeyPressed };
-        IntPtr handlerRef;
-        int status = InstallEventHandler(
-            GetApplicationEventTarget(),
-            &Callback,
-            1,
-            &spec,
-            IntPtr.Zero,
-            &handlerRef);
-        if (status != 0) throw new InvalidOperationException($"Carbon InstallEventHandler failed: {status}");
-        _eventHandlerRef = handlerRef;
-
-        var hkid = new EventHotKeyID { signature = 0x53544B59u /* 'STKY' */, id = 1 };
+        uint id = _nextId++;
+        var hkid = new EventHotKeyID { signature = 0x53544B59u /* 'STKY' */, id = id };
         IntPtr hkRef;
-        status = RegisterEventHotKey(kvk, carbonMods, hkid, GetApplicationEventTarget(), 0, &hkRef);
-        if (status != 0) throw new InvalidOperationException($"Carbon RegisterEventHotKey failed: {status}");
-        _hotkeyRef = hkRef;
+        int regStatus = RegisterEventHotKey(kvk, carbonMods, hkid, GetApplicationEventTarget(), 0, &hkRef);
+        if (regStatus != 0) throw new InvalidOperationException($"Carbon RegisterEventHotKey failed: {regStatus}");
+
+        _callbacks[id] = (hkRef, callback);
     }
 
     // Map Win32 VK to Carbon kVK_ANSI_*.
@@ -96,16 +96,23 @@ internal sealed unsafe partial class HotkeyHost : IHotkeyHost
     private static int Callback(IntPtr inHandlerCallRef, IntPtr inEvent, IntPtr inUserData)
     {
         var inst = s_instance;
-        if (inst is not null)
-        {
-            Dispatcher.UIThread.Post(() => inst.HotkeyPressed?.Invoke());
-        }
+        if (inst is null) return 0;
+
+        EventHotKeyID hkid;
+        int s = GetEventParameter(inEvent, kEventParamDirectObject, kTypeEventHotKeyID,
+            IntPtr.Zero, (nuint)sizeof(EventHotKeyID), IntPtr.Zero, &hkid);
+        if (s != 0) return 0;
+
+        if (inst._callbacks.TryGetValue(hkid.id, out var entry))
+            Dispatcher.UIThread.Post(entry.callback);
         return 0;
     }
 
     public void Dispose()
     {
-        if (_hotkeyRef != IntPtr.Zero) { UnregisterEventHotKey(_hotkeyRef); _hotkeyRef = IntPtr.Zero; }
+        foreach (var entry in _callbacks.Values)
+            UnregisterEventHotKey(entry.hkRef);
+        _callbacks.Clear();
         if (_eventHandlerRef != IntPtr.Zero) { RemoveEventHandler(_eventHandlerRef); _eventHandlerRef = IntPtr.Zero; }
         s_instance = null;
     }
@@ -136,4 +143,16 @@ internal sealed unsafe partial class HotkeyHost : IHotkeyHost
 
     [LibraryImport(Carbon)]
     private static partial int UnregisterEventHotKey(IntPtr inHotKey);
+
+    // ByteCount is `unsigned long` on macOS (64-bit). Use nuint so the marshaller
+    // emits the right ABI on arm64 / x86_64.
+    [LibraryImport(Carbon)]
+    private static partial int GetEventParameter(
+        IntPtr inEvent,
+        uint inName,
+        uint inDesiredType,
+        IntPtr outActualType,
+        nuint inBufferSize,
+        IntPtr outActualSize,
+        EventHotKeyID* outData);
 }

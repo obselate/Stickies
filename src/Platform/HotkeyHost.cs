@@ -38,10 +38,7 @@ internal static class HotkeyHost
 
     private sealed class NullHotkeyHost : IHotkeyHost
     {
-#pragma warning disable CS0067
-        public event Action? HotkeyPressed;
-#pragma warning restore CS0067
-        public void Register(HotkeyModifier mods, uint vk) { }
+        public void Register(HotkeyModifier mods, uint vk, Action callback) { }
         public void Dispose() { }
     }
 }

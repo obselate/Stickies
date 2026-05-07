@@ -11,17 +11,15 @@ namespace Stickies.Win32;
 [SupportedOSPlatform("windows")]
 internal sealed partial class HotkeyHost : Window, IHotkeyHost
 {
-    private const int HotkeyId = 1;
     private const uint WmHotkey = 0x0312;
     private const uint MOD_ALT = 0x0001, MOD_CONTROL = 0x0002, MOD_SHIFT = 0x0004, MOD_WIN = 0x0008;
 
     private readonly Win32Properties.CustomWndProcHookCallback _hook;
     private IntPtr _hwnd;
-    private bool _registered;
-    private uint _pendingMods;
-    private uint _pendingVk;
 
-    public event Action? HotkeyPressed;
+    private readonly System.Collections.Generic.Dictionary<int, Action> _callbacks = new();
+    private readonly System.Collections.Generic.List<(int id, uint mods, uint vk)> _pending = new();
+    private int _nextId = 1;
 
     public HotkeyHost()
     {
@@ -42,11 +40,13 @@ internal sealed partial class HotkeyHost : Window, IHotkeyHost
         Closing += OnClosing;
     }
 
-    public void Register(HotkeyModifier mods, uint vk)
+    public void Register(HotkeyModifier mods, uint vk, Action callback)
     {
-        _pendingMods = ToWin32(mods);
-        _pendingVk = vk;
-        if (_hwnd != IntPtr.Zero) DoRegister();
+        int id = _nextId++;
+        uint w32mods = ToWin32(mods);
+        _callbacks[id] = callback;
+        if (_hwnd != IntPtr.Zero) RegisterHotKey(_hwnd, id, w32mods, vk);
+        else _pending.Add((id, w32mods, vk));
     }
 
     private static uint ToWin32(HotkeyModifier m)
@@ -64,31 +64,26 @@ internal sealed partial class HotkeyHost : Window, IHotkeyHost
         var handle = TryGetPlatformHandle();
         if (handle is null) return;
         _hwnd = handle.Handle;
-        if (_pendingVk != 0) DoRegister();
-    }
-
-    private void DoRegister()
-    {
-        if (_registered) return;
-        _registered = RegisterHotKey(_hwnd, HotkeyId, _pendingMods, _pendingVk);
-        // If registration fails (another app holds the combo) we silently continue.
+        foreach (var p in _pending) RegisterHotKey(_hwnd, p.id, p.mods, p.vk);
+        _pending.Clear();
     }
 
     private void OnClosing(object? sender, WindowClosingEventArgs e)
     {
-        if (_registered)
-        {
-            UnregisterHotKey(_hwnd, HotkeyId);
-            _registered = false;
-        }
+        foreach (var id in _callbacks.Keys) UnregisterHotKey(_hwnd, id);
+        _callbacks.Clear();
     }
 
     private IntPtr WndProcHook(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == WmHotkey && wParam.ToInt32() == HotkeyId)
+        if (msg == WmHotkey)
         {
-            handled = true;
-            Dispatcher.UIThread.Post(() => HotkeyPressed?.Invoke());
+            int id = wParam.ToInt32();
+            if (_callbacks.TryGetValue(id, out var cb))
+            {
+                handled = true;
+                Dispatcher.UIThread.Post(cb);
+            }
         }
         return IntPtr.Zero;
     }
