@@ -68,6 +68,7 @@ public partial class App : Application
             else
             {
                 w.Show();
+                Visibility.NoteSurfaced();
             }
         }
     }
@@ -152,6 +153,7 @@ public partial class App : Application
             {
                 any = true;
                 mw.Show();
+                Visibility.NoteSurfaced();
                 mw.Activate();
             }
         }
@@ -165,6 +167,7 @@ public partial class App : Application
             if (w is MainWindow mw && mw.NoteId == id)
             {
                 mw.Show();
+                Visibility.NoteSurfaced();
                 mw.Activate();
                 return;
             }
@@ -173,5 +176,6 @@ public partial class App : Application
         if (row is null) return;
         var fresh = new MainWindow(row);
         fresh.Show();
+        Visibility.NoteSurfaced();
     }
 }

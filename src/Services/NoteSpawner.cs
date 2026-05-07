@@ -35,6 +35,7 @@ internal static class NoteSpawner
             var wN = new MainWindow(rowN);
             Tween.FadeIn(wN);
             wN.Show();
+            Visibility.NoteSurfaced();
             return;
         }
 
@@ -93,6 +94,7 @@ internal static class NoteSpawner
         var fresh = new MainWindow(row);
         fresh.Opacity = 0;
         fresh.Show();
+        Visibility.NoteSurfaced();
         Tween.FadeIn(fresh, durationMs: 200);
     }
 
