@@ -234,6 +234,13 @@ public partial class MainWindow : Window
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && NoteText.IsFocused)
+        {
+            BodyBorder.Focus();
+            e.Handled = true;
+            return;
+        }
+
         var cmd = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
         if (e.KeyModifiers != cmd) return;
         if (e.Key == Key.N)

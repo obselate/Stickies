@@ -12,7 +12,9 @@
     <Border Name="BodyBorder"
             Background="#FFF59E"
             BoxShadow="2 4 16 0 #50000000"
-            CornerRadius="2">
+            CornerRadius="2"
+            Focusable="True"
+            IsTabStop="False">
         <Border.ContextMenu>
             <ContextMenu Name="NoteMenu">
                 <MenuItem Name="NewMenuItem" Header="New note" Click="OnNewClick"/>
