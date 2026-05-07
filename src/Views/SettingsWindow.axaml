@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Stickies.Views.SettingsWindow"
+        Width="320" Height="140"
+        SystemDecorations="None"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Background="#FFFFFF"
+        FontFamily="Segoe UI, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif"
+        Title="Settings">
+  <Border BorderBrush="#888" BorderThickness="1" Padding="14">
+    <Grid RowDefinitions="Auto,12,Auto,12,Auto">
+
+      <!-- Title -->
+      <TextBlock Grid.Row="0"
+                 Text="Settings"
+                 FontSize="13"
+                 FontWeight="SemiBold"
+                 Foreground="#333"/>
+
+      <!-- Purge field row -->
+      <Grid Grid.Row="2" ColumnDefinitions="*,8,80">
+        <TextBlock Grid.Column="0"
+                   Text="Purge deleted notes after (days):"
+                   VerticalAlignment="Center"
+                   FontSize="12"
+                   Foreground="#444"/>
+        <TextBox Name="PurgeDaysBox"
+                 Grid.Column="2"
+                 Height="28"
+                 VerticalContentAlignment="Center"
+                 HorizontalContentAlignment="Center"
+                 KeyDown="OnPurgeDaysKeyDown"/>
+      </Grid>
+
+      <!-- Buttons -->
+      <StackPanel Grid.Row="4"
+                  Orientation="Horizontal"
+                  HorizontalAlignment="Right"
+                  Spacing="6">
+        <Button Content="Cancel" Click="OnCancelClick" Width="68" Height="28"/>
+        <Button Content="Apply"  Click="OnApplyClick"  Width="68" Height="28" IsDefault="True"/>
+      </StackPanel>
+
+    </Grid>
+  </Border>
+</Window>

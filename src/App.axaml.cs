@@ -30,6 +30,10 @@ public partial class App : Application
         {
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
+            // Load settings before any window opens so startup code (e.g. Stickies-usm
+            // auto-purge) can read Settings.Current.PurgeAfterDays immediately.
+            Settings.Load();
+
             OpenActiveNotes(desktop);
 
             if (StartupVerb == "NEW")

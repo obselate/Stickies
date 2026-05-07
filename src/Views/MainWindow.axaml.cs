@@ -294,6 +294,8 @@ public partial class MainWindow : Window
         App.Store.UpdateColor(_noteId, hex);
     }
 
+    // TODO(bpy): wire SettingsWindow.ShowAsync(this) from compact menu here.
+
     private void ApplyColor(string hex)
     {
         Color body;
