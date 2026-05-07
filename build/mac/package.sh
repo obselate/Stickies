@@ -55,9 +55,29 @@ chmod +x "$APP/Contents/MacOS/Stickies"
 cp "$ICNS" "$APP/Contents/Resources/Stickies.icns"
 sed "s/\${VERSION}/$VERSION/g" "$ROOT/build/mac/Info.plist" > "$APP/Contents/Info.plist"
 
-# 3. Build .dmg.
+# 3. Stage the DMG layout: Stickies.app, /Applications symlink for drag-install,
+#    .VolumeIcon.icns at root for the volume's Finder icon.
+STAGE="$OUT/dmg-stage"
+rm -rf "$STAGE"
+mkdir -p "$STAGE"
+cp -R "$APP" "$STAGE/Stickies.app"
+ln -s /Applications "$STAGE/Applications"
+cp "$ICNS" "$STAGE/.VolumeIcon.icns"
+
+# 4. Build a writable DMG, set the volume's custom-icon Finder flag, then
+#    convert to a compressed read-only DMG. SetFile -a C is what tells Finder
+#    to use .VolumeIcon.icns; without it the disk image shows the default icon.
 DMG="$OUT/Stickies-$VERSION-osx-arm64.dmg"
-rm -f "$DMG"
-hdiutil create -volname Stickies -srcfolder "$APP" -ov -format UDZO "$DMG"
+RW_DMG="$OUT/Stickies-rw.dmg"
+MOUNT="$OUT/mount"
+rm -f "$DMG" "$RW_DMG"
+rm -rf "$MOUNT"
+
+hdiutil create -volname Stickies -srcfolder "$STAGE" -ov -format UDRW "$RW_DMG"
+hdiutil attach "$RW_DMG" -mountpoint "$MOUNT" -nobrowse
+SetFile -a C "$MOUNT" 2>/dev/null || true
+hdiutil detach "$MOUNT"
+hdiutil convert "$RW_DMG" -format UDZO -ov -o "$DMG"
+rm -f "$RW_DMG"
 
 echo "Built: $DMG"

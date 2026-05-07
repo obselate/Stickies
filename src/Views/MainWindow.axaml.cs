@@ -63,6 +63,19 @@ public partial class MainWindow : Window
         Closing += (_, _) => FlushPendingWrites();
         KeyDown += OnKeyDown;
 
+        // Mac convention is ⌘ instead of Ctrl. Override the menu accelerators at
+        // runtime so they display correctly; OnKeyDown also accepts Meta on Mac.
+        if (OperatingSystem.IsMacOS())
+        {
+            NewMenuItem.InputGesture = new KeyGesture(Key.N, KeyModifiers.Meta);
+            DeleteMenuItem.InputGesture = new KeyGesture(Key.D, KeyModifiers.Meta);
+        }
+        else
+        {
+            NewMenuItem.InputGesture = new KeyGesture(Key.N, KeyModifiers.Control);
+            DeleteMenuItem.InputGesture = new KeyGesture(Key.D, KeyModifiers.Control);
+        }
+
         NoteText.GotFocus += OnNoteFocusGot;
         NoteText.LostFocus += OnNoteFocusLost;
 
@@ -208,7 +221,8 @@ public partial class MainWindow : Window
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.KeyModifiers != KeyModifiers.Control) return;
+        var cmd = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
+        if (e.KeyModifiers != cmd) return;
         if (e.Key == Key.N)
         {
             NoteSpawner.SpawnNew(this);

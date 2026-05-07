@@ -37,10 +37,10 @@ public partial class App : Application
 
             _hotkeyHost = HotkeyHost.Create();
             _hotkeyHost.HotkeyPressed += () => NoteSpawner.SpawnNew(null);
-            // Cross-platform binding. On Windows: Ctrl+Shift+S. On Mac (c0r):
-            // HotkeyModifier.Control maps to cmdKey, so Register(Control|Shift, 0x53)
-            // naturally lands on ⌘⇧S. On Linux (49f): Ctrl+Shift+S via XGrabKey.
-            _hotkeyHost.Register(HotkeyModifier.Control | HotkeyModifier.Shift, 0x53);
+            // Cross-platform binding. On Windows / Linux: Ctrl+Shift+N.
+            // On Mac: HotkeyModifier.Control maps to cmdKey, so the same call site
+            // lands on ⌘⇧N — the Mac-natural new-window combo paired with ⌘N in-app.
+            _hotkeyHost.Register(HotkeyModifier.Control | HotkeyModifier.Shift, 0x4E);
 
             StartIpcServer(desktop);
         }

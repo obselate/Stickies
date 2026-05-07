@@ -16,7 +16,13 @@ Download `Stickies-X.Y.Z-win-x64.msi` and run it. Per-user install (no UAC promp
 
 Download `Stickies-X.Y.Z-osx-arm64.dmg`, mount it, drag `Stickies.app` to `/Applications`.
 
-The build is unsigned, so on first launch macOS Gatekeeper blocks it. On macOS 14 (Sonoma) and earlier: right-click `Stickies.app` → **Open** → **Open** in the warning dialog. On macOS 15 (Sequoia) and later: launch it once, then go to **System Settings → Privacy & Security**, scroll to "Stickies was blocked", click **Open Anyway**.
+The build is unsigned, so macOS Gatekeeper quarantines it on download. The reliable one-shot fix:
+
+```bash
+xattr -cr /Applications/Stickies.app
+```
+
+That clears the quarantine attribute and the app launches normally. (Without this, on Sequoia+ the GUI path is **System Settings → Privacy & Security → "Stickies was blocked" → Open Anyway**, but `xattr -cr` is faster and works on all macOS versions.)
 
 ### Linux (x64)
 
@@ -39,11 +45,11 @@ If you can't install FUSE (e.g. a locked-down container), run the AppImage with 
 
 | | |
 |---|---|
-| **Spawn a new note** | Ctrl+Shift+S (Windows / Linux) · ⌘⇧S (macOS) |
-| **New from a note** | Right-click → New note · Ctrl+N |
+| **Spawn a new note (global hotkey)** | Ctrl+Shift+N (Windows / Linux) · ⌘⇧N (macOS) |
+| **New from a note** | Ctrl+N (Windows / Linux) · ⌘N (macOS) |
 | **Pin on top** | Right-click → Pin on top |
 | **Change color** | Right-click → swatch · `…` for custom HSV picker |
-| **Delete** | Right-click → Delete · Ctrl+Delete |
+| **Delete** | Ctrl+D (Windows / Linux) · ⌘D (macOS) |
 
 Notes auto-save as you type. Position and size persist per note. Soft-delete only — there's no recycle bin UI yet, but nothing's gone from the database.
 

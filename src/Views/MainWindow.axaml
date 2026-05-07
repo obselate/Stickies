@@ -15,7 +15,7 @@
             CornerRadius="2">
         <Border.ContextMenu>
             <ContextMenu Name="NoteMenu">
-                <MenuItem Header="New note" InputGesture="Ctrl+N" Click="OnNewClick"/>
+                <MenuItem Name="NewMenuItem" Header="New note" Click="OnNewClick"/>
                 <MenuItem Name="PinMenuItem" Click="OnPinClick"/>
                 <Separator/>
                 <MenuItem Padding="6,4" StaysOpenOnClick="True">
@@ -33,7 +33,7 @@
                     </MenuItem.Header>
                 </MenuItem>
                 <Separator/>
-                <MenuItem Header="Delete" InputGesture="Ctrl+D" Click="OnDeleteClick"/>
+                <MenuItem Name="DeleteMenuItem" Header="Delete" Click="OnDeleteClick"/>
             </ContextMenu>
         </Border.ContextMenu>
         <Grid x:Name="BodyGrid" RowDefinitions="22,*">
