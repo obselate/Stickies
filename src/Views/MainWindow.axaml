@@ -36,6 +36,7 @@
                 </MenuItem>
                 <Separator/>
                 <MenuItem Name="DeleteMenuItem" Header="Delete" Click="OnDeleteClick"/>
+                <MenuItem Name="LockMenuItem" Header="Lock in place" Click="OnLockToggleClick"/>
             </ContextMenu>
         </Border.ContextMenu>
         <Grid x:Name="BodyGrid" RowDefinitions="22,*">
@@ -81,6 +82,16 @@
                       Fill="#33000000"
                       Stretch="Fill"/>
             </Border>
+
+            <Path Name="LockIcon"
+                  Grid.Row="1"
+                  Width="10" Height="10"
+                  Fill="Black" Opacity="0.3"
+                  IsHitTestVisible="False"
+                  IsVisible="False"
+                  Data="M 3 7 V 5 a 2 2 0 0 1 4 0 V 7 H 7 V 5 a 1 1 0 0 0 -2 0 V 7 Z M 2 7 H 8 V 11 H 2 Z"
+                  HorizontalAlignment="Right" VerticalAlignment="Top"
+                  Margin="0,4,4,0"/>
         </Grid>
     </Border>
 </Window>

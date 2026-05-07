@@ -25,6 +25,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _saveBoundsTimer;
     private bool _ready;
     private bool _pinned;
+    private bool _locked;
     internal bool _isAnimating;
     internal string _color = "#FFF59E";
 
@@ -46,6 +47,7 @@ public partial class MainWindow : Window
         NoteText.Text = row.Text;
         ApplyPinned(row.Pinned);
         ApplyColor(row.Color);
+        ApplyLocked(row.Locked);
 
         _saveTextTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         _saveTextTimer.Tick += OnSaveTextTick;
@@ -186,12 +188,14 @@ public partial class MainWindow : Window
 
     private void OnDragBarPressed(object? sender, PointerPressedEventArgs e)
     {
+        if (_locked) return;
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             BeginMoveDrag(e);
     }
 
     private void OnResizeGripPressed(object? sender, PointerPressedEventArgs e)
     {
+        if (_locked) return;
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             BeginResizeDrag(WindowEdge.SouthEast, e);
     }
@@ -272,8 +276,24 @@ public partial class MainWindow : Window
         PinMenuItem.Header = pinned ? "Unpin from top" : "Pin on top";
     }
 
+    private void OnLockToggleClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _locked = !_locked;
+        App.Store.UpdateLocked(_noteId, _locked);
+        LockMenuItem.Header = _locked ? "Unlock" : "Lock in place";
+        LockIcon.IsVisible = _locked;
+    }
+
+    private void ApplyLocked(bool locked)
+    {
+        _locked = locked;
+        LockMenuItem.Header = locked ? "Unlock" : "Lock in place";
+        LockIcon.IsVisible = locked;
+    }
+
     private void OnSwatchPressed(object? sender, PointerPressedEventArgs e)
     {
+        if (_locked) return;
         if (sender is not Ellipse el || el.Tag is not string hex) return;
         ApplyColor(hex);
         App.Store.UpdateColor(_noteId, hex);
@@ -283,6 +303,7 @@ public partial class MainWindow : Window
 
     private async void OnCustomColorPressed(object? sender, PointerPressedEventArgs e)
     {
+        if (_locked) return;
         e.Handled = true;
         NoteMenu.Close();
         var initial = Color.Parse(_color);

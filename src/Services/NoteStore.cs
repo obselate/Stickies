@@ -55,6 +55,7 @@ public sealed class NoteStore
         AddColumnIfMissing(c, "deleted_at", "INTEGER");
         AddColumnIfMissing(c, "pinned", "INTEGER NOT NULL DEFAULT 1");
         AddColumnIfMissing(c, "color", "TEXT NOT NULL DEFAULT '#FFF59E'");
+        AddColumnIfMissing(c, "locked", "INTEGER NOT NULL DEFAULT 0");
     }
 
     private static void AddColumnIfMissing(SqliteConnection c, string col, string type)
@@ -70,7 +71,7 @@ public sealed class NoteStore
         alter.ExecuteNonQuery();
     }
 
-    private const string SelectColumns = "id, text, x, y, width, height, pinned, color";
+    private const string SelectColumns = "id, text, x, y, width, height, pinned, color, locked";
 
     private static Note ReadRow(SqliteDataReader r) => new(
         r.GetInt64(0),
@@ -80,7 +81,8 @@ public sealed class NoteStore
         r.GetInt32(4),
         r.GetInt32(5),
         r.GetInt32(6) != 0,
-        r.GetString(7));
+        r.GetString(7),
+        r.GetInt32(8) != 0);
 
     public List<Note> LoadActive()
     {
@@ -118,7 +120,7 @@ public sealed class NoteStore
         cmd.Parameters.Add("@h", SqliteType.Integer).Value = height;
         cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var id = Convert.ToInt64(cmd.ExecuteScalar() ?? 0L);
-        return new Note(id, "", x, y, width, height, true, "#FFF59E");
+        return new Note(id, "", x, y, width, height, true, "#FFF59E", false);
     }
 
     public void UpdateColor(long id, string color)
@@ -138,6 +140,17 @@ public sealed class NoteStore
         using var cmd = c.CreateCommand();
         cmd.CommandText = "UPDATE notes SET pinned=@p, updated_at=@ts WHERE id=@id;";
         cmd.Parameters.Add("@p", SqliteType.Integer).Value = pinned ? 1 : 0;
+        cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        cmd.Parameters.Add("@id", SqliteType.Integer).Value = id;
+        cmd.ExecuteNonQuery();
+    }
+
+    public void UpdateLocked(long id, bool locked)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE notes SET locked=@l, updated_at=@ts WHERE id=@id;";
+        cmd.Parameters.Add("@l", SqliteType.Integer).Value = locked ? 1 : 0;
         cmd.Parameters.Add("@ts", SqliteType.Integer).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         cmd.Parameters.Add("@id", SqliteType.Integer).Value = id;
         cmd.ExecuteNonQuery();

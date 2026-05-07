@@ -8,4 +8,5 @@ public sealed record Note(
     int Width,
     int Height,
     bool Pinned,
-    string Color);
+    string Color,
+    bool Locked);
