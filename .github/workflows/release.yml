@@ -138,14 +138,20 @@ jobs:
       - name: Resolve version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
-      - name: List artifacts
-        run: ls -la artifacts/
+      - name: Collect artifacts
+        run: |
+          find artifacts -type f
+          mkdir -p dist
+          find artifacts -type f \( \
+            -name '*.zip' -o -name '*.msi' -o -name '*.dmg' -o -name '*.AppImage' \
+            \) -exec cp {} dist/ \;
+          ls -la dist/
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            artifacts/* \
+            dist/* \
             --title "Stickies $VERSION" \
             --generate-notes
