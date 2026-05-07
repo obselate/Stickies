@@ -59,4 +59,50 @@ internal static class ColorOps
         if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6;
         return p;
     }
+
+    public static (double H, double S, double V) RgbToHsv(Color c)
+    {
+        double r = c.R / 255.0, g = c.G / 255.0, b = c.B / 255.0;
+        double max = Math.Max(r, Math.Max(g, b));
+        double min = Math.Min(r, Math.Min(g, b));
+        double d = max - min;
+        double v = max;
+        double s = max < 1e-9 ? 0 : d / max;
+        double h;
+        if (d < 1e-9) h = 0;
+        else if (max == r) h = 60 * (((g - b) / d) % 6);
+        else if (max == g) h = 60 * (((b - r) / d) + 2);
+        else h = 60 * (((r - g) / d) + 4);
+        if (h < 0) h += 360;
+        return (h, s, v);
+    }
+
+    public static Color HsvToRgb(double h, double s, double v)
+    {
+        if (s < 1e-9)
+        {
+            byte g = (byte)Math.Clamp(v * 255, 0, 255);
+            return Color.FromRgb(g, g, g);
+        }
+        h = (h % 360 + 360) % 360 / 60;
+        int i = (int)Math.Floor(h);
+        double f = h - i;
+        double p = v * (1 - s);
+        double q = v * (1 - s * f);
+        double t = v * (1 - s * (1 - f));
+        double r2, g2, b2;
+        switch (i)
+        {
+            case 0: r2 = v; g2 = t; b2 = p; break;
+            case 1: r2 = q; g2 = v; b2 = p; break;
+            case 2: r2 = p; g2 = v; b2 = t; break;
+            case 3: r2 = p; g2 = q; b2 = v; break;
+            case 4: r2 = t; g2 = p; b2 = v; break;
+            default: r2 = v; g2 = p; b2 = q; break;
+        }
+        return Color.FromRgb(
+            (byte)Math.Clamp(r2 * 255, 0, 255),
+            (byte)Math.Clamp(g2 * 255, 0, 255),
+            (byte)Math.Clamp(b2 * 255, 0, 255));
+    }
 }

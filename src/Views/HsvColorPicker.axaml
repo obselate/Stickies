@@ -1,0 +1,68 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Stickies.Views.HsvColorPicker"
+        Width="216" Height="296"
+        SystemDecorations="None"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Background="#FFFFFF"
+        FontFamily="Segoe UI, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif"
+        Title="Pick color">
+  <Border BorderBrush="#888" BorderThickness="1" Padding="10">
+    <Grid RowDefinitions="160,8,28,8,28,8,Auto"
+          ColumnDefinitions="160,8,20,Auto">
+
+      <!-- SV square -->
+      <Image Name="SvImage" Grid.Row="0" Grid.Column="0"
+             Width="160" Height="160" Stretch="Fill"
+             PointerPressed="OnSvPressed"
+             PointerMoved="OnSvMoved"
+             PointerReleased="OnSvReleased"
+             Cursor="Cross"/>
+      <Canvas Grid.Row="0" Grid.Column="0"
+              Width="160" Height="160"
+              IsHitTestVisible="False">
+        <Border Name="SvCursor" Width="12" Height="12" CornerRadius="6"
+                BorderBrush="White" BorderThickness="2"
+                Background="Transparent"/>
+      </Canvas>
+
+      <!-- Hue strip -->
+      <Image Name="HueImage" Grid.Row="0" Grid.Column="2"
+             Width="20" Height="160" Stretch="Fill"
+             PointerPressed="OnHuePressed"
+             PointerMoved="OnHueMoved"
+             PointerReleased="OnHueReleased"
+             Cursor="Hand"/>
+      <Canvas Grid.Row="0" Grid.Column="2"
+              Width="20" Height="160"
+              IsHitTestVisible="False">
+        <Border Name="HueCursor" Width="24" Height="3"
+                Background="Transparent"
+                BorderBrush="White" BorderThickness="2"
+                Canvas.Left="-2"/>
+      </Canvas>
+
+      <!-- Preview swatch -->
+      <Border Name="PreviewBorder" Grid.Row="2" Grid.ColumnSpan="3"
+              Height="28" Background="#FFFFFF"
+              BorderBrush="#888" BorderThickness="1" CornerRadius="2"/>
+
+      <!-- Hex input -->
+      <TextBox Name="HexBox" Grid.Row="4" Grid.ColumnSpan="3"
+               Height="28" VerticalContentAlignment="Center"
+               FontFamily="Cascadia Mono, Consolas, 'SF Mono', Menlo, 'DejaVu Sans Mono', monospace"
+               KeyDown="OnHexKeyDown"
+               LostFocus="OnHexLostFocus"/>
+
+      <!-- Buttons -->
+      <StackPanel Grid.Row="6" Grid.ColumnSpan="3"
+                  Orientation="Horizontal"
+                  HorizontalAlignment="Right" Spacing="6">
+        <Button Content="Cancel" Click="OnCancelClick" Width="68" Height="28"/>
+        <Button Content="Apply" Click="OnApplyClick" Width="68" Height="28" IsDefault="True"/>
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>
