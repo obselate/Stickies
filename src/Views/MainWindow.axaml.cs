@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using Stickies.Animation;
 using Stickies.Models;
 using Stickies.Services;
 
@@ -314,7 +315,7 @@ public partial class MainWindow : Window
             }
             var rowN = App.Store.Create(nx, ny, W, H);
             var wN = new MainWindow(rowN);
-            FadeIn(wN);
+            Tween.FadeIn(wN);
             wN.Show();
             return;
         }
@@ -380,13 +381,13 @@ public partial class MainWindow : Window
 
         var oldNewPos = PlacementService.FindAvailableSpace(source, newNotePos, width, height);
 
-        AnimateMove(source, oldNewPos);
+        Tween.AnimateMove(source, oldNewPos);
 
         var row = App.Store.Create(newNotePos.X, newNotePos.Y, width, height);
         var fresh = new MainWindow(row);
         fresh.Opacity = 0;
         fresh.Show();
-        FadeIn(fresh, durationMs: 200);
+        Tween.FadeIn(fresh, durationMs: 200);
     }
 
     // First visible MainWindow (any). Used as a placement anchor when a new
@@ -398,47 +399,6 @@ public partial class MainWindow : Window
         foreach (var w in desktop.Windows)
             if (w is MainWindow mw && mw.IsVisible) return mw;
         return null;
-    }
-
-    private static void AnimateMove(MainWindow w, PixelPoint to, int durationMs = 200)
-    {
-        var from = w.Position;
-        if (from == to) return;
-        var sw = Stopwatch.StartNew();
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
-        timer.Tick += (_, _) =>
-        {
-            double t = Math.Clamp(sw.Elapsed.TotalMilliseconds / durationMs, 0.0, 1.0);
-            double eased = 1 - Math.Pow(1 - t, 3); // ease-out cubic
-            int x = (int)(from.X + (to.X - from.X) * eased);
-            int y = (int)(from.Y + (to.Y - from.Y) * eased);
-            w.Position = new PixelPoint(x, y);
-            if (t >= 1.0)
-            {
-                w.Position = to;
-                timer.Stop();
-                sw.Stop();
-            }
-        };
-        timer.Start();
-    }
-
-    private static void FadeIn(MainWindow w, int durationMs = 50)
-    {
-        w.Opacity = 0;
-        var sw = Stopwatch.StartNew();
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
-        timer.Tick += (_, _) =>
-        {
-            double t = Math.Clamp(sw.Elapsed.TotalMilliseconds / durationMs, 0.0, 1.0);
-            w.Opacity = t;
-            if (t >= 1.0)
-            {
-                timer.Stop();
-                sw.Stop();
-            }
-        };
-        timer.Start();
     }
 
     internal static Bitmap CaptureCornerSnapshot(MainWindow source)
