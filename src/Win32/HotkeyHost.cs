@@ -1,23 +1,27 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
-using Stickies.Services;
+using Stickies.Platform;
 
 namespace Stickies.Win32;
 
-internal sealed partial class HotkeyHost : Window
+[SupportedOSPlatform("windows")]
+internal sealed partial class HotkeyHost : Window, IHotkeyHost
 {
     private const int HotkeyId = 1;
-    private const uint ModShift = 0x0004;
-    private const uint ModWin = 0x0008;
-    private const uint VkN = 0x4E;
     private const uint WmHotkey = 0x0312;
+    private const uint MOD_ALT = 0x0001, MOD_CONTROL = 0x0002, MOD_SHIFT = 0x0004, MOD_WIN = 0x0008;
 
     private readonly Win32Properties.CustomWndProcHookCallback _hook;
     private IntPtr _hwnd;
     private bool _registered;
+    private uint _pendingMods;
+    private uint _pendingVk;
+
+    public event Action? HotkeyPressed;
 
     public HotkeyHost()
     {
@@ -38,12 +42,35 @@ internal sealed partial class HotkeyHost : Window
         Closing += OnClosing;
     }
 
+    public void Register(HotkeyModifier mods, uint vk)
+    {
+        _pendingMods = ToWin32(mods);
+        _pendingVk = vk;
+        if (_hwnd != IntPtr.Zero) DoRegister();
+    }
+
+    private static uint ToWin32(HotkeyModifier m)
+    {
+        uint r = 0;
+        if ((m & HotkeyModifier.Control) != 0) r |= MOD_CONTROL;
+        if ((m & HotkeyModifier.Shift) != 0) r |= MOD_SHIFT;
+        if ((m & HotkeyModifier.Alt) != 0) r |= MOD_ALT;
+        if ((m & HotkeyModifier.Super) != 0) r |= MOD_WIN;
+        return r;
+    }
+
     private void OnOpened(object? sender, EventArgs e)
     {
         var handle = TryGetPlatformHandle();
         if (handle is null) return;
         _hwnd = handle.Handle;
-        _registered = RegisterHotKey(_hwnd, HotkeyId, ModWin | ModShift, VkN);
+        if (_pendingVk != 0) DoRegister();
+    }
+
+    private void DoRegister()
+    {
+        if (_registered) return;
+        _registered = RegisterHotKey(_hwnd, HotkeyId, _pendingMods, _pendingVk);
         // If registration fails (another app holds the combo) we silently continue.
     }
 
@@ -61,10 +88,12 @@ internal sealed partial class HotkeyHost : Window
         if (msg == WmHotkey && wParam.ToInt32() == HotkeyId)
         {
             handled = true;
-            Dispatcher.UIThread.Post(() => NoteSpawner.SpawnNew(null));
+            Dispatcher.UIThread.Post(() => HotkeyPressed?.Invoke());
         }
         return IntPtr.Zero;
     }
+
+    void IDisposable.Dispose() => Close();
 
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

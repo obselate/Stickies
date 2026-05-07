@@ -9,9 +9,9 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Stickies.Models;
+using Stickies.Platform;
 using Stickies.Services;
 using Stickies.Views;
-using Stickies.Win32;
 
 namespace Stickies;
 
@@ -20,7 +20,7 @@ public partial class App : Application
     public static NoteStore Store { get; } = new();
     public static string StartupVerb { get; set; } = "SHOW";
 
-    private HotkeyHost? _hotkeyHost;
+    private IHotkeyHost? _hotkeyHost;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -35,8 +35,12 @@ public partial class App : Application
             if (StartupVerb == "NEW")
                 NoteSpawner.SpawnNew(null);
 
-            _hotkeyHost = new HotkeyHost();
-            _hotkeyHost.Show();
+            _hotkeyHost = HotkeyHost.Create();
+            _hotkeyHost.HotkeyPressed += () => NoteSpawner.SpawnNew(null);
+            // Cross-platform binding. On Windows: Ctrl+Shift+S. On Mac (c0r):
+            // HotkeyModifier.Control maps to cmdKey, so Register(Control|Shift, 0x53)
+            // naturally lands on ⌘⇧S. On Linux (49f): Ctrl+Shift+S via XGrabKey.
+            _hotkeyHost.Register(HotkeyModifier.Control | HotkeyModifier.Shift, 0x53);
 
             StartIpcServer(desktop);
         }
