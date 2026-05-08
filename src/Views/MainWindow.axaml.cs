@@ -38,13 +38,16 @@ public partial class MainWindow : Window
     private DispatcherTimer? _deleteRevertTimer;
     private bool _deleteArmed;
 
-    private static readonly Geometry DeleteIconNormalGeo = Geometry.Parse("M4,5 H12 V12 H4 Z M3,5 H13 M6,4 H10 V5 M6.5,7 V11 M9.5,7 V11");
-    private static readonly Geometry DeleteIconArmedGeo = Geometry.Parse("M4,4 L12,12 M12,4 L4,12");
-    private static readonly Geometry LockClosedGeo = Geometry.Parse("M3,7 L13,7 L13,13 L3,13 Z M5,7 V5 A3,3 0 0,1 11,5 V7");
-    private static readonly Geometry LockOpenGeo = Geometry.Parse("M3,7 L13,7 L13,13 L3,13 Z M5,7 V5 A3,3 0 0,1 11,5 V6");
-    private static readonly IBrush DeleteNormalBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33));
+    private static readonly Geometry DeleteIconNormalGeo = Geometry.Parse(
+        "M14 2H10C10 0.897 9.103 0 8 0C6.897 0 6 0.897 6 2H2C1.724 2 1.5 2.224 1.5 2.5C1.5 2.776 1.724 3 2 3H2.54L3.349 12.708C3.456 13.994 4.55 15 5.84 15H10.159C11.449 15 12.543 13.993 12.65 12.708L13.459 3H13.999C14.275 3 14.499 2.776 14.499 2.5C14.499 2.224 14.275 2 13.999 2H14ZM8 1C8.551 1 9 1.449 9 2H7C7 1.449 7.449 1 8 1ZM11.655 12.625C11.591 13.396 10.934 14 10.16 14H5.841C5.067 14 4.41 13.396 4.346 12.625L3.544 3H12.458L11.656 12.625H11.655ZM7 5.5V11.5C7 11.776 6.776 12 6.5 12C6.224 12 6 11.776 6 11.5V5.5C6 5.224 6.224 5 6.5 5C6.776 5 7 5.224 7 5.5ZM10 5.5V11.5C10 11.776 9.776 12 9.5 12C9.224 12 9 11.776 9 11.5V5.5C9 5.224 9.224 5 9.5 5C9.776 5 10 5.224 10 5.5Z");
+    private static readonly Geometry DeleteIconArmedGeo = Geometry.Parse("M2,2 L14,14 M14,2 L2,14");
+    private static readonly IBrush IconBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33));
     private static readonly IBrush DeleteArmedBrush = new SolidColorBrush(Color.FromRgb(0xD3, 0x32, 0x2D));
-    private static readonly IBrush PinFillBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33));
+
+    private static readonly Geometry PinUnpinnedGeo = Geometry.Parse(
+        "M4.146.146A.5.5 0 0 1 4.5 0h7a.5.5 0 0 1 .5.5c0 .68-.342 1.174-.646 1.479-.126.125-.25.224-.354.298v4.431l.078.048c.203.127.476.314.751.555C12.36 7.775 13 8.527 13 9.5a.5.5 0 0 1-.5.5h-4v4.5c0 .276-.224 1.5-.5 1.5s-.5-1.224-.5-1.5V10h-4a.5.5 0 0 1-.5-.5c0-.973.64-1.725 1.17-2.189A6 6 0 0 1 5 6.708V2.277a3 3 0 0 1-.354-.298C4.342 1.674 4 1.179 4 .5a.5.5 0 0 1 .146-.354m1.58 1.408-.002-.001zm-.002-.001.002.001A.5.5 0 0 1 6 2v5a.5.5 0 0 1-.276.447h-.002l-.012.007-.054.03a5 5 0 0 0-.827.58c-.318.278-.585.596-.725.936h7.792c-.14-.34-.407-.658-.725-.936a5 5 0 0 0-.881-.61l-.012-.006h-.002A.5.5 0 0 1 10 7V2a.5.5 0 0 1 .295-.458 1.8 1.8 0 0 0 .351-.271c.08-.08.155-.17.214-.271H5.14q.091.15.214.271a1.8 1.8 0 0 0 .37.282");
+    private static readonly Geometry PinPinnedGeo = Geometry.Parse(
+        "M16.2425 2.93189L21.0682 7.75765C22.3955 9.08491 22.0324 11.3224 20.3535 12.1619L15.4826 14.5973C15.3073 14.685 15.1732 14.8379 15.1092 15.0232L13.6699 19.1895C13.3684 20.0622 12.2574 20.3181 11.6045 19.6653L8.50002 16.5607L4.06074 21.0001H3L3.00008 19.9394L7.43936 15.5001L4.33487 12.3956C3.682 11.7427 3.93791 10.6317 4.81061 10.3302L8.97688 8.89096C9.16223 8.82694 9.31512 8.69287 9.40281 8.51748L11.8382 3.6466C12.6777 1.96772 14.9152 1.60462 16.2425 2.93189ZM20.0076 8.81831L15.1818 3.99255C14.5785 3.38924 13.5614 3.55429 13.1799 4.31742L10.7445 9.18829C10.4814 9.71446 10.0227 10.1167 9.46666 10.3087L5.67812 11.6175L12.3826 18.322L13.6914 14.5335C13.8835 13.9774 14.2857 13.5188 14.8118 13.2557L19.6827 10.8202C20.4458 10.4387 20.6109 9.42161 20.0076 8.81831Z");
 
     public long NoteId => _noteId;
 
@@ -343,8 +346,9 @@ public partial class MainWindow : Window
     {
         _deleteArmed = true;
         DeleteIcon.Data = DeleteIconArmedGeo;
+        DeleteIcon.Fill = Brushes.Transparent;
         DeleteIcon.Stroke = DeleteArmedBrush;
-        DeleteIcon.StrokeThickness = 1.8;
+        DeleteIcon.StrokeThickness = 2;
         ToolTip.SetTip(DeleteIconBorder, "Click again to delete");
 
         _deleteRevertTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
@@ -361,8 +365,9 @@ public partial class MainWindow : Window
         _deleteRevertTimer?.Stop();
         _deleteArmed = false;
         DeleteIcon.Data = DeleteIconNormalGeo;
-        DeleteIcon.Stroke = DeleteNormalBrush;
-        DeleteIcon.StrokeThickness = 1.25;
+        DeleteIcon.Fill = IconBrush;
+        DeleteIcon.Stroke = null;
+        DeleteIcon.StrokeThickness = 0;
         ToolTip.SetTip(DeleteIconBorder, "Delete");
     }
 
@@ -370,14 +375,14 @@ public partial class MainWindow : Window
     {
         _pinned = pinned;
         Topmost = pinned;
-        PinIcon.Fill = pinned ? PinFillBrush : Brushes.Transparent;
+        PinIcon.Data = pinned ? PinPinnedGeo : PinUnpinnedGeo;
         ToolTip.SetTip(PinIconBorder, pinned ? "Unpin from top" : "Pin on top");
     }
 
     private void ApplyLocked(bool locked)
     {
         _locked = locked;
-        LockIcon.Data = locked ? LockClosedGeo : LockOpenGeo;
+        LockIcon.Opacity = locked ? 1.0 : 0.35;
         ToolTip.SetTip(LockIconBorder, locked ? "Unlock" : "Lock in place");
         if (_tapeHost == null) return; // ctor path; OnWindowOpened will Show if locked
         if (locked)
